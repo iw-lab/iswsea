@@ -238,7 +238,7 @@ export default function Special() {
               </div>
 
               <p className="text-[var(--foreground-muted)] text-sm sm:text-base lg:text-base leading-relaxed line-clamp-3 sm:line-clamp-none">
-                {activeSpecial.description}
+                {activeSpecial.summary}
               </p>
             </div>
 
