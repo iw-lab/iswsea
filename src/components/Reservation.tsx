@@ -1,127 +1,93 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useInView } from "framer-motion";
-import {
-  Calendar,
-  Clock,
-  Users,
-  ExternalLink,
-  Phone,
-  CreditCard,
-  CheckCircle,
-} from "lucide-react";
-import { pensionInfo, priceInfo } from "@/data/pension";
+import { Calendar, Gift, Phone, Sandwich, Sparkles, type LucideIcon } from "lucide-react";
+import { pensionInfo, prologue, services } from "@/data/pension";
+import { useAdminStore } from "@/stores/adminStore";
+import { Badge, ButtonLink, Reveal } from "@/components/ui";
+
+const serviceIcons: Record<string, LucideIcon> = { Gift, Sandwich };
 
 export default function Reservation() {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const events = useAdminStore((s) => s.events).filter((e) => e.active);
 
   return (
-    <section
-      id="reservation"
-      className="bg-[#0F1419] text-white relative overflow-hidden pt-8 pb-14 lg:pt-24 lg:pb-24"
-      ref={ref}
-    >
+    <section id="reservation" className="relative scroll-mt-16 overflow-hidden bg-scrim text-on-image">
+      <img src="/images/gallery/special1/7.webp" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover opacity-60" loading="lazy" decoding="async" />
+      <div className="absolute inset-0 bg-gradient-to-b from-scrim/70 via-scrim/80 to-scrim" />
 
-      <div className="w-full max-w-none px-4 sm:px-6 lg:px-16 xl:px-24 relative z-10">
-        {/* Section Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-8 sm:mb-12 lg:mb-16"
-        >
-          <p className="text-white/70 text-sm sm:text-base tracking-[0.3em] uppercase mb-3 sm:mb-4 font-medium">
-            RESERVATION
+      <div className="container-x section-y relative">
+        <Reveal className="mx-auto max-w-3xl text-center">
+          <p className="eyebrow text-on-image-muted">RESERVATION · {prologue.mottoEn}</p>
+          <h2 className="mt-4 font-serif text-fluid-4xl font-medium leading-[1.15] text-balance">{prologue.motto}</h2>
+          <p className="mt-5 text-fluid-base text-on-image-muted">
+            실시간 예약 달력에서 빈 객실과 요금을 확인하시고, 연박·직접 예약 할인은 {pensionInfo.landline}로 문의해 주세요.
           </p>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 font-display">
-            예약 안내
-          </h2>
-        </motion.div>
-
-        {/* 1줄 레이아웃 - 전체 너비 */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4"
-        >
-          {/* 네이버 예약 */}
-          <a
-            href={pensionInfo.naverBookingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-[#1a2332] rounded-xl sm:rounded-2xl border border-[#2a3a4a] hover:border-[#03C75A] transition-all hover:scale-[1.02]"
-          >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#03C75A] flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
-              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <h3 className="text-sm sm:text-base font-bold text-white mb-0.5 sm:mb-1">네이버 예약</h3>
-            <p className="text-gray-500 text-xs">간편 예약</p>
-          </a>
-
-          {/* 실시간 예약 */}
-          <a
-            href={pensionInfo.yapenBookingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-[#1a2332] rounded-xl sm:rounded-2xl border border-[#2a3a4a] hover:border-[#FF6B35] transition-all hover:scale-[1.02]"
-          >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#FF6B35] flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
-              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <h3 className="text-sm sm:text-base font-bold text-white mb-0.5 sm:mb-1">실시간 예약</h3>
-            <p className="text-gray-500 text-xs">빈방 확인</p>
-          </a>
-
-          {/* 전화 예약 */}
-          <a
-            href={`tel:${pensionInfo.phone}`}
-            className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-[#1a2332] rounded-xl sm:rounded-2xl border border-[#2a3a4a] hover:border-[#4A90A4] transition-all hover:scale-[1.02]"
-          >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#4A90A4] flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
-              <Phone className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <h3 className="text-sm sm:text-base font-bold text-white mb-0.5 sm:mb-1">전화 예약</h3>
-            <p className="text-[#4A90A4] text-xs sm:text-sm font-medium">{pensionInfo.phone}</p>
-          </a>
-
-          {/* 입/퇴실 시간 */}
-          <div className="flex flex-col items-center justify-center p-4 sm:p-6 bg-[#1a2332] rounded-xl sm:rounded-2xl border border-[#2a3a4a]">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#0d1520] flex items-center justify-center mb-2 sm:mb-3">
-              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-[#4A90A4]" />
-            </div>
-            <h3 className="text-sm sm:text-base font-bold text-white mb-1 sm:mb-2">입/퇴실</h3>
-            <div className="flex gap-2 sm:gap-4 text-xs sm:text-sm">
-              <span className="text-gray-400">IN <span className="text-white font-bold">{pensionInfo.checkIn}</span></span>
-              <span className="text-gray-400">OUT <span className="text-white font-bold">{pensionInfo.checkOut}</span></span>
-            </div>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <ButtonLink href={pensionInfo.yapenBookingUrl} external size="lg" className="bg-on-image text-scrim hover:bg-on-image/90">
+              <Calendar className="h-4 w-4" /> 실시간 예약 (NOL)
+            </ButtonLink>
+            <ButtonLink href={pensionInfo.naverBookingUrl} external size="lg" variant="onImage">
+              네이버 예약
+            </ButtonLink>
+            <ButtonLink href={`tel:${pensionInfo.landline}`} size="lg" variant="onImage">
+              <Phone className="h-4 w-4" /> {pensionInfo.landline}
+            </ButtonLink>
           </div>
+          <p className="mt-4 text-sm text-on-image-muted">
+            입실 {pensionInfo.checkIn} (연휴·성수기 {pensionInfo.checkInPeak}) · 퇴실 {pensionInfo.checkOut} (비수기 평일 {pensionInfo.checkOutOffSeasonWeekday})
+          </p>
+        </Reveal>
 
-          {/* 추가 인원 */}
-          <div className="flex flex-col items-center justify-center p-4 sm:p-6 bg-[#1a2332] rounded-xl sm:rounded-2xl border border-[#2a3a4a]">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#0d1520] flex items-center justify-center mb-2 sm:mb-3">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#4A9F6D]" />
-            </div>
-            <h3 className="text-sm sm:text-base font-bold text-white mb-0.5 sm:mb-1">추가 인원</h3>
-            <p className="text-[#4A9F6D] text-base sm:text-lg font-bold">{priceInfo.extraPerson.toLocaleString()}원</p>
-            <p className="text-gray-500 text-xs">{priceInfo.freeAge} 무료</p>
-          </div>
+        {/* 무료 서비스 */}
+        <Reveal delay={0.1} className="mt-14 grid gap-4 sm:grid-cols-2 lg:mt-20">
+          {services.map((s) => {
+            const I = serviceIcons[s.icon] ?? Gift;
+            return (
+              <div key={s.id} className="rounded-lg border border-on-image/15 bg-on-image/8 p-6 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-on-image/12">
+                    <I className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <Badge tone="onImage" className="mb-1">무료</Badge>
+                    <p className="text-[15px] font-semibold">{s.title}</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-[15px] leading-relaxed text-on-image-muted">{s.description}</p>
+              </div>
+            );
+          })}
+        </Reveal>
 
-          {/* 요금 기준 */}
-          <div className="flex flex-col items-center justify-center p-4 sm:p-6 bg-[#1a2332] rounded-xl sm:rounded-2xl border border-[#2a3a4a]">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#0d1520] flex items-center justify-center mb-2 sm:mb-3">
-              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-[#F5B041]" />
+        {/* 이벤트 */}
+        {events.length > 0 && (
+          <Reveal delay={0.15} className="mt-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-accent-strong" />
+              <p className="eyebrow text-[12px] text-on-image-muted">EVENTS &amp; OFFERS</p>
             </div>
-            <h3 className="text-sm sm:text-base font-bold text-white mb-1 sm:mb-2">요금 기준</h3>
-            <div className="text-xs space-y-0.5 sm:space-y-1 text-center">
-              <p><span className="text-[#4A9F6D]">●</span> <span className="text-gray-400">주중</span> <span className="text-white">일~목</span></p>
-              <p><span className="text-[#F5B041]">●</span> <span className="text-gray-400">금요일</span></p>
-              <p><span className="text-[#E74C3C]">●</span> <span className="text-gray-400">주말</span> <span className="text-white">토,공휴일전</span></p>
-            </div>
-          </div>
-        </motion.div>
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {events.map((e) => (
+                <li key={e.id} className="flex flex-col rounded-lg border border-on-image/15 bg-on-image/8 p-5 backdrop-blur-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    {e.badge && <Badge tone="onImage">{e.badge}</Badge>}
+                    {e.highlight && <span className="font-display text-sm tracking-wide text-accent-strong">{e.highlight}</span>}
+                  </div>
+                  <p className="mt-3 text-[15px] font-semibold leading-snug">{e.title}</p>
+                  <p className="mt-1 text-xs text-on-image-muted">{e.period}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-on-image-muted">{e.description}</p>
+                  {e.conditions.length > 0 && (
+                    <ul className="mt-auto space-y-0.5 pt-3 text-xs text-on-image-muted/80">
+                      {e.conditions.map((c) => (
+                        <li key={c}>* {c}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        )}
       </div>
     </section>
   );

@@ -1,245 +1,202 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Menu,
-  X,
-  Phone,
-  Instagram,
-  Calendar,
-  Clock,
-} from "lucide-react";
-import { pensionInfo, navItems } from "@/data/pension";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { AnimatePresence, motion } from "framer-motion";
+import { Menu, X, Phone, Moon, Sun, Instagram } from "lucide-react";
+import { navItems, pensionInfo } from "@/data/pension";
+import { cn } from "@/lib/utils";
 
-export default function Header() {
-  const [isOpen, setIsOpen] = useState(false);
+function Wordmark({ onImage }: { onImage: boolean }) {
+  return (
+    <Link href="/" className="flex flex-col leading-none" aria-label="숲속의바다 홈">
+      <span className={cn("font-serif text-[22px] font-semibold tracking-tight", onImage ? "text-on-image" : "text-foreground")}>
+        숲속의바다
+      </span>
+      <span className={cn("eyebrow mt-1 text-[10px] tracking-[0.34em]", onImage ? "text-on-image-muted" : "text-muted-foreground")}>
+        Sea in the Forest
+      </span>
+    </Link>
+  );
+}
+
+export function ThemeToggle({ onImage, className }: { onImage?: boolean; className?: string }) {
+  const { resolvedTheme, setTheme } = useTheme();
+  // 하이드레이션 전에는 아이콘을 고정(서버=false) — setState-in-effect 없이 마운트 여부 판별
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const dark = mounted && resolvedTheme === "dark";
+  return (
+    <button
+      type="button"
+      aria-label={dark ? "라이트 모드로 전환" : "다크 모드로 전환"}
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      className={cn(
+        "inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors",
+        onImage
+          ? "border-on-image/35 text-on-image hover:bg-on-image/15"
+          : "border-border text-foreground hover:bg-accent",
+        className
+      )}
+    >
+      {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+    </button>
+  );
+}
+
+export default function Header({ transparent = true }: { transparent?: boolean }) {
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-  }, [isOpen]);
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  // 메뉴를 연 채 데스크톱 폭(lg)으로 넓어지면 시트는 숨겨지는데 스크롤 잠금만 남는다 → 강제로 닫는다
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = (e: MediaQueryListEvent) => e.matches && setOpen(false);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const onImage = transparent && !scrolled && !open;
+  const linkHref = (href: string) => (isHome ? href : `/${href}`);
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 py-3 sm:py-4 lg:py-6 bg-gradient-to-b from-black/60 to-transparent">
-        <div className="w-full px-6 sm:px-8 lg:px-16">
-          <div className="flex items-center justify-start">
-            {/* 왼쪽: 로고 */}
-            <a href="#" className="flex items-center flex-shrink-0 ml-2 sm:ml-4 lg:ml-0">
-              <div className="relative">
-                <img
-                  src="/images/common/logo.png"
-                  alt="숲속의바다 펜션"
-                  className="h-12 sm:h-16 lg:h-20 w-auto object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-                  style={{ filter: 'brightness(0) invert(1)' }}
-                />
-              </div>
+      <header
+        className={cn(
+          "fixed inset-x-0 top-0 transition-[background-color,border-color,box-shadow] duration-300",
+          // 메뉴 시트(z-overlay)가 헤더를 덮어 닫기 버튼이 가려지지 않도록, 열린 동안엔 헤더를 시트 위(z-modal)로 올린다
+          open ? "z-[var(--z-modal)]" : "z-[var(--z-sticky)]",
+          onImage ? "border-b border-transparent" : "border-b border-border bg-background/85 backdrop-blur-md"
+        )}
+      >
+        <div className="container-x flex h-[72px] items-center justify-between gap-4">
+          <Wordmark onImage={onImage} />
+
+          <nav className="hidden items-center gap-7 lg:flex" aria-label="주요 메뉴">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={linkHref(item.href)}
+                className={cn(
+                  "text-[15px] font-medium tracking-tight transition-opacity hover:opacity-70",
+                  onImage ? "text-on-image" : "text-foreground"
+                )}
+              >
+                {item.name}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <a
+              href={`tel:${pensionInfo.phone}`}
+              className={cn(
+                "hidden h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold md:inline-flex",
+                onImage ? "border-on-image/35 text-on-image hover:bg-on-image/15" : "border-border text-foreground hover:bg-accent"
+              )}
+            >
+              <Phone className="h-4 w-4" />
+              {pensionInfo.phone}
             </a>
-
-            {/* 가운데: 메뉴 - 로고에서 100px 오른쪽 */}
-            <nav className="hidden lg:flex items-center gap-8 xl:gap-12" style={{ marginLeft: '100px' }}>
-              {navItems.map((item) => (
-                <a
-                  key={item.name}
-                  href={item.href}
-                  className="text-xl lg:text-2xl font-bold tracking-wide transition-all whitespace-nowrap text-white hover:text-white/80"
-                  style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000' }}
-                >
-                  {item.name}
-                </a>
-              ))}
-            </nav>
-
-            {/* 오른쪽: 전화, 예약 - 맨 오른쪽 배치 */}
-            <div className="flex-1" />
-            <div className="flex items-center gap-4">
-              {/* Phone - 테두리 안에 여백 넉넉하게, 흰색 글씨 */}
-              <a
-                href={`tel:${pensionInfo.phone}`}
-                className="hidden md:flex items-center gap-3 rounded-full transition-all font-medium whitespace-nowrap border-2 bg-transparent border-white/60 backdrop-blur-sm hover:bg-white/10 hover:border-white/80"
-                style={{ padding: '12px 28px' }}
-              >
-                <Phone className="w-5 h-5 text-white" />
-                <span className="text-lg text-white">전화상담</span>
-              </a>
-
-              {/* Quick Reservation - 네이버 예약 */}
-              <a
-                href={pensionInfo.naverBookingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden lg:flex items-center gap-2 rounded-full transition-all font-bold whitespace-nowrap hover:-translate-y-0.5 bg-[#03C75A] hover:bg-[#02b351] border border-[#03C75A]"
-                style={{ padding: '12px 24px' }}
-              >
-                <Calendar className="w-5 h-5 text-white" />
-                <span className="text-base text-white">네이버 예약</span>
-              </a>
-
-              {/* Quick Reservation - 실시간 예약 */}
-              <a
-                href={pensionInfo.yapenBookingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden lg:flex items-center gap-2 rounded-full transition-all font-bold whitespace-nowrap hover:-translate-y-0.5 bg-[#FF6B35] hover:bg-[#E55A2B] border border-[#FF6B35]"
-                style={{ padding: '12px 24px' }}
-              >
-                <Clock className="w-5 h-5 text-white" />
-                <span className="text-base text-white">실시간 예약</span>
-              </a>
-
-              {/* Mobile Menu Toggle */}
-              <button
-                onClick={() => setIsOpen(true)}
-                className="lg:hidden p-3 rounded-full transition-all border text-white border-white/30 bg-black/20 hover:bg-black/30 mr-4 sm:mr-6"
-                aria-label="메뉴 열기"
-              >
-                <Menu className="w-7 h-7" />
-              </button>
-            </div>
+            <ThemeToggle onImage={onImage} />
+            <a
+              href={pensionInfo.yapenBookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "hidden h-10 items-center rounded-full px-5 text-sm font-semibold transition-colors sm:inline-flex",
+                onImage ? "bg-on-image text-scrim hover:bg-on-image/90" : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}
+            >
+              실시간 예약
+            </a>
+            <button
+              type="button"
+              aria-label={open ? "메뉴 닫기" : "메뉴 열기"}
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+              className={cn(
+                "inline-flex h-10 w-10 items-center justify-center rounded-full border lg:hidden",
+                onImage ? "border-on-image/35 text-on-image" : "border-border text-foreground"
+              )}
+            >
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Menu - 프리미엄 풀스크린 디자인 */}
       <AnimatePresence>
-        {isOpen && (
+        {open && (
           <motion.div
+            key="sheet"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] lg:hidden"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[var(--z-overlay)] bg-background lg:hidden"
           >
-            {/* Full Screen Background with subtle pattern */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-gradient-to-b from-[#0a1628] via-[#0d1a2d] to-[#0a1628]"
-            />
-
-            {/* Decorative elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-20 -left-20 w-60 h-60 bg-emerald-500/5 rounded-full blur-[100px]" />
-              <div className="absolute bottom-40 -right-20 w-80 h-80 bg-blue-500/5 rounded-full blur-[100px]" />
-            </div>
-
-            {/* Close Button - 우상단 */}
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              onClick={() => setIsOpen(false)}
-              className="absolute top-6 right-6 z-10 p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors border border-white/10"
-              aria-label="메뉴 닫기"
-            >
-              <X className="w-6 h-6 text-white/80" />
-            </motion.button>
-
-            {/* Content */}
-            <div className="relative h-full flex flex-col px-8 pt-8 pb-10">
-              {/* Logo & Brand */}
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="flex flex-col items-center pt-4"
-              >
-                <img
-                  src="/images/common/logo.png"
-                  alt="숲속의바다 펜션"
-                  className="h-20 w-auto object-contain mb-2"
-                  style={{ filter: 'brightness(0) invert(1)' }}
-                />
-                <p className="text-white/30 text-xs tracking-[0.3em] uppercase">Premium Pension</p>
-              </motion.div>
-
-              {/* Navigation - 좌측 정렬, 큰 타이포 */}
-              <nav className="flex-1 flex items-center mt-8">
-                <ul className="w-full space-y-1">
-                  {navItems.map((item, index) => (
-                    <motion.li
-                      key={item.name}
-                      initial={{ opacity: 0, x: -30 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.15 + index * 0.05 }}
+            <div className="container-x flex h-full flex-col pt-[88px] pb-8">
+              <ul className="flex flex-col divide-y divide-border">
+                {navItems.map((item, i) => (
+                  <motion.li
+                    key={item.href}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.04 * i }}
+                  >
+                    <Link
+                      href={linkHref(item.href)}
+                      onClick={() => setOpen(false)}
+                      className="flex items-baseline justify-between py-4"
                     >
-                      <a
-                        href={item.href}
-                        onClick={() => setIsOpen(false)}
-                        className="group flex items-center py-4 border-b border-white/5"
-                      >
-                        <span className="text-white/20 text-sm font-medium w-8">0{index + 1}</span>
-                        <span className="text-2xl font-bold text-white/90 group-hover:text-white transition-colors group-hover:translate-x-2 duration-300">
-                          {item.name}
-                        </span>
-                        <motion.span
-                          className="ml-auto text-white/0 group-hover:text-white/50 transition-colors"
-                        >
-                          →
-                        </motion.span>
-                      </a>
-                    </motion.li>
-                  ))}
-                </ul>
-              </nav>
-
-              {/* Bottom Actions */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="space-y-3 mt-auto"
-              >
-                {/* 예약 버튼들 */}
-                <div className="flex gap-3">
-                  <a
-                    href={pensionInfo.naverBookingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 py-4 bg-[#03C75A] text-white rounded-2xl font-bold text-base hover:bg-[#02b351] transition-all shadow-[0_8px_30px_rgba(3,199,90,0.3)]"
-                  >
-                    <Calendar className="w-5 h-5" />
-                    네이버 예약
-                  </a>
-                  <a
-                    href={pensionInfo.yapenBookingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 py-4 bg-[#FF6B35] text-white rounded-2xl font-bold text-base hover:bg-[#E55A2B] transition-all shadow-[0_8px_30px_rgba(255,107,53,0.3)]"
-                  >
-                    <Clock className="w-5 h-5" />
-                    실시간 예약
-                  </a>
-                </div>
-
-                {/* 연락처 버튼들 */}
-                <div className="flex gap-3">
-                  <a
-                    href={`tel:${pensionInfo.phone}`}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 bg-white/5 text-white rounded-xl font-medium hover:bg-white/10 transition-colors border border-white/10"
-                  >
-                    <Phone className="w-5 h-5" />
-                    <span className="text-sm">{pensionInfo.phone}</span>
-                  </a>
-                  <a
-                    href={`https://instagram.com/${pensionInfo.instagram}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 px-5 py-4 bg-white/5 text-white rounded-xl font-medium hover:bg-white/10 transition-colors border border-white/10"
-                  >
-                    <Instagram className="w-5 h-5" />
-                  </a>
-                </div>
-
-                {/* Copyright */}
-                <p className="text-center text-white/20 text-xs pt-2">
-                  © 2024 숲속의바다. All rights reserved.
-                </p>
-              </motion.div>
+                      <span className="font-serif text-2xl font-medium text-foreground">{item.name}</span>
+                      <span className="eyebrow text-[11px] text-muted-foreground">{item.nameEn}</span>
+                    </Link>
+                  </motion.li>
+                ))}
+              </ul>
+              <div className="mt-auto grid grid-cols-2 gap-3 pt-6">
+                <a
+                  href={`tel:${pensionInfo.phone}`}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border text-[15px] font-semibold"
+                >
+                  <Phone className="h-4 w-4" /> 전화 문의
+                </a>
+                <a
+                  href={pensionInfo.yapenBookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-12 items-center justify-center rounded-md bg-primary text-[15px] font-semibold text-primary-foreground"
+                >
+                  실시간 예약
+                </a>
+                <a
+                  href={pensionInfo.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="col-span-2 inline-flex h-11 items-center justify-center gap-2 text-sm text-muted-foreground"
+                >
+                  <Instagram className="h-4 w-4" /> @{pensionInfo.instagram}
+                </a>
+              </div>
             </div>
           </motion.div>
         )}

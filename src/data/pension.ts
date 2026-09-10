@@ -61,18 +61,28 @@ export const prologue = {
   mottoEn: "WE'LL GIVE SOME SWEET MEMORIES FOR YOU",
 };
 
+/** 소개 섹션 핵심 수치 4개 (객실 수는 rooms 배열에서 파생) */
+export const aboutStats = [
+  { value: "12", label: "프라이빗 객실", sub: "숲속동 · 바다동" },
+  { value: "100%", label: "전 객실 오션뷰", sub: "일출·월출을 객실에서" },
+  { value: "전실", label: "월풀형 욕조", sub: "개별 실내 바베큐 테라스" },
+  { value: "4계절", label: "바다꽃정원", sub: "작은 수목원 · 산책로" },
+];
+
 export const heroImages = [
-  { src: "/images/gallery/main/1.jpg", alt: "펜션 전경", title: "숲과 바다가 만나는 곳", subtitle: "태안 가로림만의 언덕 위 목조 펜션" },
-  { src: "/images/gallery/special1/3.jpg", alt: "탁트인 바다 전망", title: "눈 앞에 펼쳐진 바다", subtitle: "전 객실 오션뷰 · 개별 테라스" },
-  { src: "/images/gallery/special1/7.jpg", alt: "서해 일몰", title: "일출과 월출을 객실에서", subtitle: "가로림만의 잔잔한 수면 위 햇살" },
-  { src: "/images/gallery/room1/1.jpg", alt: "아늑한 객실 내부", title: "따뜻한 목조 인테리어", subtitle: "편안함과 아늑함이 공존하는 공간" },
-  { src: "/images/gallery/special2/3.jpg", alt: "월풀형 욕조", title: "프라이빗 월풀형 욕조", subtitle: "전 객실 개별 완비" },
-  { src: "/images/gallery/special4/1.jpg", alt: "바베큐 테라스", title: "오션뷰 실내 바베큐 테라스", subtitle: "사계절 바다를 보며 즐기는 바베큐" },
-  { src: "/images/gallery/special5/1.jpg", alt: "수영장", title: "워터 슬라이드 야외 수영장", subtitle: "바다가 보이는 여름의 추억" },
-  { src: "/images/gallery/special6/1.jpg", alt: "소나무 숲", title: "소나무 향 가득한 힐링", subtitle: "숲속 산책로와 야외 카페" },
+  { src: "/images/gallery/main/1.webp", alt: "펜션 전경", title: "숲과 바다가 만나는 곳", subtitle: "태안 가로림만의 언덕 위 목조 펜션" },
+  { src: "/images/gallery/special1/3.webp", alt: "탁트인 바다 전망", title: "눈 앞에 펼쳐진 바다", subtitle: "전 객실 오션뷰 · 개별 테라스" },
+  { src: "/images/gallery/special1/7.webp", alt: "서해 일몰", title: "일출과 월출을 객실에서", subtitle: "가로림만의 잔잔한 수면 위 햇살" },
+  { src: "/images/gallery/room1/1.webp", alt: "아늑한 객실 내부", title: "따뜻한 목조 인테리어", subtitle: "편안함과 아늑함이 공존하는 공간" },
+  { src: "/images/gallery/special2/3.webp", alt: "월풀형 욕조", title: "프라이빗 월풀형 욕조", subtitle: "전 객실 개별 완비" },
+  { src: "/images/gallery/special4/1.webp", alt: "바베큐 테라스", title: "오션뷰 실내 바베큐 테라스", subtitle: "사계절 바다를 보며 즐기는 바베큐" },
+  { src: "/images/gallery/special5/1.webp", alt: "수영장", title: "워터 슬라이드 야외 수영장", subtitle: "바다가 보이는 여름의 추억" },
+  { src: "/images/gallery/special6/1.webp", alt: "소나무 숲", title: "소나무 향 가득한 힐링", subtitle: "숲속 산책로와 야외 카페" },
 ];
 
 // 전 객실 공통 안내(원문)
+export const roomMapImage = "/images/map/room-map.webp";
+
 export const roomCommon = {
   intro: [
     "숲속의바다 펜션의 모든 객실은 아름다운 오션뷰를 자랑합니다.",
@@ -89,7 +99,7 @@ export interface Room {
   id: string;
   name: string;
   nameEn: string;
-  building: "숲속동" | "바다동";
+  building?: "숲속동" | "바다동"; // 객실 배치도(room-map.jpg) 기준 — 로라·찰스톤은 배치도 미표기
   description: string;
   features: string[];
   images: { src: string; alt: string }[];
@@ -103,7 +113,7 @@ export interface Room {
 }
 
 const gallery = (dir: string, n: number, label: string) =>
-  Array.from({ length: n }, (_, i) => ({ src: `/images/gallery/${dir}/${i + 1}.jpg`, alt: `${label} ${i + 1}` }));
+  Array.from({ length: n }, (_, i) => ({ src: `/images/gallery/${dir}/${i + 1}.webp`, alt: `${label} ${i + 1}` }));
 
 const FEATURES = ["오션뷰", "개별 테라스", "실내 바베큐", "월풀형 욕조"];
 
@@ -111,84 +121,81 @@ export const rooms: Room[] = [
   {
     id: "roomba", name: "룸바", nameEn: "ROOMBA", building: "숲속동",
     description: "따뜻하고 포근한 인테리어의 객실과 창문 밖 소나무 그 너머의 시원한 바다를 보며 여행의 여유로움을 즐겨보세요.",
-    features: FEATURES, images: gallery("room1", 12, "룸바"), mainImage: "/images/gallery/room1/1.jpg",
+    features: FEATURES, images: gallery("room1", 12, "룸바"), mainImage: "/images/gallery/room1/1.webp",
     capacity: { standard: 2, max: 2 }, size: "30㎡ / 9평", sizeM2: 30, pyeong: 9,
     prices: { weekday: 140000, friday: 160000, weekend: 180000, sunday: 140000 },
   },
   {
     id: "landora", name: "란도라", nameEn: "LANDORA", building: "숲속동",
     description: "아늑한 목조 침실과 바다를 향한 창. 둘만의 조용한 시간을 위한 커플 객실입니다.",
-    features: FEATURES, images: gallery("room3", 10, "란도라"), mainImage: "/images/gallery/room3/1.jpg",
+    features: FEATURES, images: gallery("room3", 10, "란도라"), mainImage: "/images/gallery/room3/1.webp",
     capacity: { standard: 2, max: 2 }, size: "30㎡ / 9평", sizeM2: 30, pyeong: 9,
     prices: { weekday: 140000, friday: 160000, weekend: 180000, sunday: 140000 },
   },
   {
     id: "bluemoon", name: "블루문", nameEn: "BLUEMOON", building: "숲속동",
     description: "푸른 달빛 아래 바다를 바라보며 로맨틱한 시간을 보낼 수 있는 커플 맞춤 객실입니다.",
-    features: FEATURES, images: gallery("room4", 10, "블루문"), mainImage: "/images/gallery/room4/1.jpg",
+    features: FEATURES, images: gallery("room4", 10, "블루문"), mainImage: "/images/gallery/room4/1.webp",
     capacity: { standard: 2, max: 2 }, size: "30㎡ / 9평", sizeM2: 30, pyeong: 9,
     prices: { weekday: 140000, friday: 160000, weekend: 180000, sunday: 140000 },
   },
   {
-    id: "lora", name: "로라", nameEn: "LORA", building: "숲속동",
-    description: "모던하면서도 편안한 분위기의 객실에서 일상의 피로를 풀어보세요.",
-    features: FEATURES, images: gallery("room5", 10, "로라"), mainImage: "/images/gallery/room5/1.jpg",
+    id: "lora", name: "로라", nameEn: "LORA",     description: "모던하면서도 편안한 분위기의 객실에서 일상의 피로를 풀어보세요.",
+    features: FEATURES, images: gallery("room5", 10, "로라"), mainImage: "/images/gallery/room5/1.webp",
     capacity: { standard: 2, max: 3 }, size: "40㎡ / 12평", sizeM2: 40, pyeong: 12,
     prices: { weekday: 110000, friday: 120000, weekend: 160000, sunday: 110000 },
   },
   {
-    id: "elle", name: "엘르", nameEn: "ELLE", building: "숲속동",
-    description: "우아하고 세련된 인테리어가 돋보이는 감각적인 공간입니다.",
-    features: FEATURES, images: gallery("room6", 10, "엘르"), mainImage: "/images/gallery/room6/1.jpg",
+    id: "elle", name: "엘르", nameEn: "ELLE", building: "바다동",    description: "우아하고 세련된 인테리어가 돋보이는 감각적인 공간입니다.",
+    features: FEATURES, images: gallery("room6", 10, "엘르"), mainImage: "/images/gallery/room6/1.webp",
     capacity: { standard: 2, max: 3 }, size: "40㎡ / 12평", sizeM2: 40, pyeong: 12,
     prices: { weekday: 160000, friday: 190000, weekend: 220000, sunday: 160000 },
   },
   {
     id: "angela", name: "안젤라", nameEn: "ANGELA", building: "바다동",
     description: "천사처럼 포근하고 아늑한 분위기에서 편안한 휴식을 취해보세요. 가족 여행에 알맞은 넉넉한 크기입니다.",
-    features: FEATURES, images: gallery("room7", 10, "안젤라"), mainImage: "/images/gallery/room7/1.jpg",
+    features: FEATURES, images: gallery("room7", 10, "안젤라"), mainImage: "/images/gallery/room7/1.webp",
     capacity: { standard: 2, max: 4 }, size: "53㎡ / 16평", sizeM2: 53, pyeong: 16,
     prices: { weekday: 180000, friday: 220000, weekend: 240000, sunday: 180000 },
   },
   {
     id: "sahara", name: "사하라", nameEn: "SAHARA", building: "바다동",
     description: "이국적인 분위기와 함께 특별한 여행의 기분을 느껴보세요.",
-    features: FEATURES, images: gallery("room8", 10, "사하라"), mainImage: "/images/gallery/room8/1.jpg",
+    features: FEATURES, images: gallery("room8", 10, "사하라"), mainImage: "/images/gallery/room8/1.webp",
     capacity: { standard: 2, max: 4 }, size: "53㎡ / 16평", sizeM2: 53, pyeong: 16,
     prices: { weekday: 180000, friday: 220000, weekend: 240000, sunday: 180000 },
   },
   {
     id: "margaret", name: "마가렛", nameEn: "MARGARET", building: "바다동",
     description: "꽃처럼 화사하고 밝은 분위기의 객실에서 힐링 타임을 즐기세요.",
-    features: FEATURES, images: gallery("room9", 10, "마가렛"), mainImage: "/images/gallery/room9/1.jpg",
+    features: FEATURES, images: gallery("room9", 10, "마가렛"), mainImage: "/images/gallery/room9/1.webp",
     capacity: { standard: 2, max: 4 }, size: "53㎡ / 16평", sizeM2: 53, pyeong: 16,
     prices: { weekday: 180000, friday: 220000, weekend: 240000, sunday: 180000 },
   },
   {
     id: "rococo", name: "로코코", nameEn: "ROCOCO", building: "바다동",
     description: "클래식하면서도 화려한 로코코 스타일의 특별한 공간입니다.",
-    features: FEATURES, images: gallery("room10", 10, "로코코"), mainImage: "/images/gallery/room10/1.jpg",
+    features: FEATURES, images: gallery("room10", 10, "로코코"), mainImage: "/images/gallery/room10/1.webp",
     capacity: { standard: 2, max: 4 }, size: "53㎡ / 16평", sizeM2: 53, pyeong: 16,
     prices: { weekday: 180000, friday: 220000, weekend: 240000, sunday: 180000 },
   },
   {
-    id: "rosanna", name: "로잔나VIP", nameEn: "ROSANNA VIP", building: "바다동", vip: true,
+    id: "rosanna", name: "로잔나VIP", nameEn: "ROSANNA VIP", building: "숲속동",vip: true,
     description: "장미처럼 아름답고 로맨틱한 분위기의 VIP 객실입니다.",
-    features: FEATURES, images: gallery("room11", 10, "로잔나VIP"), mainImage: "/images/gallery/room11/1.jpg",
+    features: FEATURES, images: gallery("room11", 10, "로잔나VIP"), mainImage: "/images/gallery/room11/1.webp",
     capacity: { standard: 2, max: 4 }, size: "66㎡ / 20평", sizeM2: 66, pyeong: 20,
     prices: { weekday: 200000, friday: 240000, weekend: 280000, sunday: 200000 },
   },
   {
-    id: "momoka", name: "모모카VIP", nameEn: "MOMOKA VIP", building: "바다동", vip: true,
+    id: "momoka", name: "모모카VIP", nameEn: "MOMOKA VIP", building: "숲속동",vip: true,
     description: "복숭아꽃처럼 사랑스럽고 따뜻한 분위기의 VIP 공간입니다.",
-    features: FEATURES, images: gallery("room12", 10, "모모카VIP"), mainImage: "/images/gallery/room12/1.jpg",
+    features: FEATURES, images: gallery("room12", 10, "모모카VIP"), mainImage: "/images/gallery/room12/1.webp",
     capacity: { standard: 2, max: 4 }, size: "66㎡ / 20평", sizeM2: 66, pyeong: 20,
     prices: { weekday: 200000, friday: 240000, weekend: 280000, sunday: 200000 },
   },
   {
-    id: "charleston", name: "찰스톤", nameEn: "CHARLESTON", building: "바다동",
-    description: "빈티지한 매력과 현대적 편안함이 조화를 이루는 대형 객실. 단체·가족 모임에 알맞습니다.",
-    features: FEATURES, images: gallery("room13", 10, "찰스톤"), mainImage: "/images/gallery/room13/1.jpg",
+    id: "charleston", name: "찰스톤", nameEn: "CHARLESTON",     description: "빈티지한 매력과 현대적 편안함이 조화를 이루는 대형 객실. 단체·가족 모임에 알맞습니다.",
+    features: FEATURES, images: gallery("room13", 10, "찰스톤"), mainImage: "/images/gallery/room13/1.webp",
     capacity: { standard: 4, max: 8 }, size: "129㎡ / 39평", sizeM2: 129, pyeong: 39,
     prices: { weekday: 330000, friday: 390000, weekend: 450000, sunday: 330000 },
   },
@@ -332,32 +339,32 @@ export const tours: Tour[] = [
   {
     id: "ggujinamu", number: "01", name: "꾸지나무골해수욕장", distance: "차량 6분", minutes: 6,
     description: "작고 아담한 해변이 특징이고, \"아늑하고 정겹다\"는 표현이 어울릴 듯한 곳입니다. 계속 안으로 가면 만대포구가 나오는데 반도 끝 지점으로 건너편으로 팔봉면 구도가 보이고, 옆으로는 대산 돗곶(대산석유화학단지)이 보입니다.",
-    images: ["/images/gallery/tour1/1.jpg", "/images/gallery/tour1/2.jpg", "/images/gallery/tour1/3.jpg"],
+    images: ["/images/gallery/tour1/1.webp", "/images/gallery/tour1/2.webp", "/images/gallery/tour1/3.webp"],
   },
   {
     id: "mandae", number: "02", name: "만대포구", distance: "차량 10분", minutes: 10,
     description: "포구에 기항하는 고깃배는 40여 척. 이원반도의 해수욕장을 찾는 여행자들은 이곳에서 횟감과 매운탕거리를 사갑니다. 포구 직전 왼편 산등성이 길을 따라가면 '작은구매', '큰구매'라는 아늑한 모래 해변을 만나고, 작은구매 앞바다의 삼형제바위까지는 썰물 때 걸어갈 수 있습니다.",
-    images: ["/images/gallery/tour2/1.jpg", "/images/gallery/tour2/2.jpg", "/images/gallery/tour2/3.jpg"],
+    images: ["/images/gallery/tour2/1.webp", "/images/gallery/tour2/2.webp", "/images/gallery/tour2/3.webp"],
   },
   {
     id: "sinduri", number: "03", name: "태안 신두리 해안사구", distance: "차량 30분", minutes: 30,
     description: "우리나라 최대의 해안사구 지대. 길이 약 3.4km, 폭 0.5~1.3km의 모래언덕에 금개구리·구렁이·맹꽁이가 서식하고 천연기념물 황조롱이도 관찰됩니다. 사막에서만 볼 수 있는 독특한 모래언덕이 아름다운 경관을 연출합니다.",
-    images: ["/images/gallery/tour3/1.jpg", "/images/gallery/tour3/2.jpg", "/images/gallery/tour3/3.jpg"],
+    images: ["/images/gallery/tour3/1.webp", "/images/gallery/tour3/2.webp", "/images/gallery/tour3/3.webp"],
   },
   {
     id: "cheollipo", number: "04", name: "천리포수목원", distance: "차량 50분", minutes: 50,
     description: "약 60ha(18만평) 규모, 크게 7개 지역으로 나뉜 수목원. 각 지역의 토질·기후·기존 식물상을 고려해 다양한 식물 종류를 적절히 배치·관리하고 있는 힐링 명소입니다.",
-    images: ["/images/gallery/tour4/1.jpg", "/images/gallery/tour4/2.jpg", "/images/gallery/tour4/3.jpg"],
+    images: ["/images/gallery/tour4/1.webp", "/images/gallery/tour4/2.webp", "/images/gallery/tour4/3.webp"],
   },
   {
     id: "anmyeondo", number: "05", name: "안면도 자연휴양림", distance: "차량 1시간", minutes: 60,
     description: "안면도 및 중부 해안 지역 자생 수종과 화목류·단풍류·야생초·유실수 등 31,670본(374종)이 식재되어 있습니다. 전망대에 오르면 서쪽으로 망망대해 서해가, 동남쪽으로 울창한 소나무 숲이 장관을 이룹니다.",
-    images: ["/images/gallery/tour5/1.jpg", "/images/gallery/tour5/2.jpg", "/images/gallery/tour5/3.jpg"],
+    images: ["/images/gallery/tour5/1.webp", "/images/gallery/tour5/2.webp", "/images/gallery/tour5/3.webp"],
   },
   {
     id: "jurassic", number: "06", name: "안면도 쥬라기박물관", distance: "차량 50분", minutes: 50,
     description: "고생태 공룡들의 진화과정을 표본 화석으로 전시한 공룡전문 자연사 박물관. 자연사의 기초지식에서 첨단 자연과학에 이르는 체험전시물을 갖춘 안면도의 문화관광 거점 테마공원입니다.",
-    images: ["/images/gallery/tour6/1.jpg", "/images/gallery/tour6/2.jpg", "/images/gallery/tour6/3.jpg"],
+    images: ["/images/gallery/tour6/1.webp", "/images/gallery/tour6/2.webp", "/images/gallery/tour6/3.webp"],
   },
   {
     id: "farmkamille", number: "07", name: "팜카밀레 허브농원", distance: "차량 40분", minutes: 40,

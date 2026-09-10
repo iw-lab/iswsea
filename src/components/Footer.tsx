@@ -1,168 +1,71 @@
-"use client";
-
-import {
-  Phone,
-  MapPin,
-  Instagram,
-  Clock,
-  ExternalLink,
-  ChevronUp,
-  Mail,
-} from "lucide-react";
-import { pensionInfo } from "@/data/pension";
+import Link from "next/link";
+import { Instagram, Phone, MapPin, Waves } from "lucide-react";
+import { navItems, pensionInfo } from "@/data/pension";
 
 export default function Footer() {
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   return (
-    <footer className="bg-[#0F1419] text-white">
-      {/* Main Footer */}
-      <div className="w-full max-w-none px-4 sm:px-6 lg:px-16 xl:px-24 py-12 sm:py-16 lg:py-24">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 lg:gap-10">
-          {/* Brand */}
-          <div className="lg:col-span-2 text-center lg:text-left">
-            <div className="flex items-center justify-center lg:justify-start gap-4 mb-6 sm:mb-8">
-              <img
-                src="/images/common/logo.png"
-                alt="숲속의바다 펜션"
-                className="h-10 sm:h-12 lg:h-14 w-auto object-contain brightness-0 invert"
-              />
-            </div>
-            <p className="text-gray-300 leading-relaxed max-w-md mx-auto lg:mx-0 mb-6 sm:mb-8 text-sm sm:text-base lg:text-lg">
-              태안 안면도의 소나무 숲과 서해 바다가 만나는 곳.<br className="hidden sm:block" />
-              전 객실 오션뷰, 개별 바베큐 테라스, 프라이빗 스파로<br className="hidden sm:block" />
-              온전히 나만의 시간을 위한 특별한 공간입니다.
-            </p>
-            <div className="flex items-center justify-center lg:justify-start gap-4">
-              <a
-                href={`https://instagram.com/${pensionInfo.instagram}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-[#E1306C] transition-all"
-              >
-                <Instagram className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="text-xs sm:text-sm">@{pensionInfo.instagram}</span>
+    <footer className="border-t border-border bg-secondary/60">
+      {/* 모바일(sm 미만)에서는 하단 고정 CTA 높이만큼 여백을 더 둬 관리자 링크가 가려지지 않게 한다 */}
+      <div className="container-x pt-14 pb-[calc(3.5rem+5.5rem+env(safe-area-inset-bottom))] sm:pb-14 lg:py-20">
+        <div className="grid gap-10 lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <p className="font-serif text-2xl font-semibold">{pensionInfo.name}</p>
+            <p className="eyebrow mt-1 text-[11px] text-muted-foreground">{pensionInfo.nameEn}</p>
+            <p className="mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">{pensionInfo.description}</p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <a href={`tel:${pensionInfo.phone}`} className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-semibold hover:bg-accent">
+                <Phone className="h-4 w-4" /> {pensionInfo.phone}
+              </a>
+              <a href={pensionInfo.instagramUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-semibold hover:bg-accent">
+                <Instagram className="h-4 w-4" /> @{pensionInfo.instagram}
+              </a>
+              <a href={pensionInfo.tideTableUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-semibold hover:bg-accent">
+                <Waves className="h-4 w-4" /> 갯벌체험 시간표
               </a>
             </div>
           </div>
 
-          {/* Contact */}
-          <div>
-            <h4 className="text-xl font-bold mb-6">연락처</h4>
-            <ul className="space-y-4">
-              <li>
-                <a
-                  href={`tel:${pensionInfo.phone}`}
-                  className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-white/5 group-hover:bg-[var(--primary)] flex items-center justify-center transition-colors">
-                    <Phone className="w-5 h-5" />
-                  </div>
-                  <span className="font-medium">{pensionInfo.phone}</span>
-                </a>
-              </li>
-              <li className="flex items-start gap-3 text-gray-400">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-5 h-5" />
-                </div>
-                <span className="pt-2">{pensionInfo.address}</span>
-              </li>
-              <li className="flex items-center gap-3 text-gray-400">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <span>체크인 {pensionInfo.checkIn} / 체크아웃 {pensionInfo.checkOut}</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Quick Links */}
-          <div>
-            <h4 className="text-xl font-bold mb-6">바로가기</h4>
-            <ul className="space-y-3">
-              <li>
-                <a
-                  href={pensionInfo.naverBookingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-400 hover:text-[#03C75A] transition-colors"
-                >
-                  네이버 예약
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </li>
-              <li>
-                <a
-                  href={pensionInfo.yapenBookingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-400 hover:text-[#FF6B35] transition-colors"
-                >
-                  실시간 예약
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </li>
-              <li>
-                <a
-                  href="http://www.always-design.com/tour/taean/taean_badatime.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                >
-                  갯벌체험 시간표
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </li>
-              <li>
-                <a
-                  href="http://www.always-design.com/tour/taean/taean_citybus_2.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                >
-                  버스 시간표
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Business Info */}
-      <div className="border-t border-white/10">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-4 text-sm text-gray-500">
-            <div className="flex flex-col lg:flex-row items-center gap-4 lg:gap-8">
-              {pensionInfo.businesses.map((biz, idx) => (
-                <div key={idx} className="text-center lg:text-left flex flex-wrap items-center justify-center lg:justify-start gap-x-2 gap-y-1">
-                  <span className="font-medium text-gray-400">{biz.name}</span>
-                  <span className="text-gray-600">|</span>
-                  <span>대표: {biz.owner}</span>
-                  <span className="text-gray-600">|</span>
-                  <span>사업자번호: {biz.bizNumber}</span>
-                </div>
+          <div className="lg:col-span-3">
+            <p className="text-sm font-semibold">바로가기</p>
+            <ul className="mt-4 grid grid-cols-2 gap-y-2 text-[15px] text-muted-foreground">
+              {navItems.map((i) => (
+                <li key={i.href}>
+                  <Link href={`/${i.href}`} className="hover:text-foreground">
+                    {i.name}
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
+          </div>
+
+          <div className="lg:col-span-4">
+            <p className="text-sm font-semibold">사업자 정보</p>
+            <p className="mt-4 flex items-start gap-2 text-[15px] text-muted-foreground">
+              <MapPin className="mt-1 h-4 w-4 shrink-0" /> {pensionInfo.address}
+            </p>
+            <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
+              {pensionInfo.businesses.map((b) => (
+                <li key={b.name}>
+                  <p>
+                    <span className="font-semibold text-foreground">{b.name}</span> · 상호 {pensionInfo.name} · 대표 {b.owner}
+                  </p>
+                  <p className="tnum">
+                    사업자번호 {b.bizNumber} · 농어촌민박신고증 {b.license}
+                  </p>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
-      </div>
 
-      {/* Copyright */}
-      <div className="border-t border-white/10">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-500">
-            <p>© {new Date().getFullYear()} 숲속의바다 펜션. All rights reserved.</p>
-            <button
-              onClick={scrollToTop}
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors hover:text-white"
-            >
-              <ChevronUp className="w-4 h-4" />
-              맨 위로
-            </button>
-          </div>
+        <div className="mt-12 flex flex-col gap-2 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          {/* 정적 빌드 시점과 방문 시점이 연도 경계를 넘으면 값이 달라질 수 있어 하이드레이션 경고를 억제 */}
+          <p suppressHydrationWarning>© {new Date().getFullYear()} Sea in the Forest. All rights reserved.</p>
+          <p>
+            <Link href="/admin" className="hover:text-foreground">
+              관리자 모드
+            </Link>
+          </p>
         </div>
       </div>
     </footer>

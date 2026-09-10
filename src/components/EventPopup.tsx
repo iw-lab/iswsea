@@ -1,214 +1,139 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { X, Sparkles, ArrowRight } from "lucide-react";
 import { useAdminStore } from "@/stores/adminStore";
+import { pensionInfo } from "@/data/pension";
+import { useFocusTrap } from "@/components/ui";
+
+const KEY = "woodinsea-popup-hide-until";
 
 export default function EventPopup() {
-  const { events, popupEnabled } = useAdminStore();
-  const [isOpen, setIsOpen] = useState(false);
-  const [dontShowToday, setDontShowToday] = useState(false);
+  const { events, notices, popupEnabled } = useAdminStore();
+  const [open, setOpen] = useState(false);
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   const activeEvents = events.filter((e) => e.active);
+  const pinned = notices.find((n) => n.active && n.important);
+
+  // persist 재수화로 이벤트·공지가 바뀌어도 다시 판단하도록 원시값 하나로 축약해 의존성에 건다
+  const hasContent = popupEnabled && (activeEvents.length > 0 || !!pinned);
+  useEffect(() => {
+    if (!hasContent) return;
+    try {
+      const until = Number(localStorage.getItem(KEY) ?? 0);
+      if (Date.now() < until) return;
+    } catch {
+      /* storage 차단 환경 */
+    }
+    const t = window.setTimeout(() => setOpen(true), 1400);
+    return () => window.clearTimeout(t);
+  }, [hasContent]);
 
   useEffect(() => {
-    if (!popupEnabled || activeEvents.length === 0) {
-      return;
-    }
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
-    const dontShowUntil = localStorage.getItem("eventPopupDontShowUntil");
-
-    if (dontShowUntil) {
-      const untilDate = new Date(dontShowUntil);
-      if (new Date() < untilDate) {
-        return;
+  const close = (hideToday: boolean) => {
+    if (hideToday) {
+      try {
+        localStorage.setItem(KEY, String(Date.now() + 24 * 60 * 60 * 1000));
+      } catch {
+        /* noop */
       }
     }
+    setOpen(false);
+  };
 
-    const timer = setTimeout(() => {
-      setIsOpen(true);
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [popupEnabled, activeEvents.length]);
-
-  const handleClose = useCallback(() => {
-    setIsOpen(false);
-    localStorage.setItem("eventPopupClosedAt", new Date().toISOString());
-
-    if (dontShowToday) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      localStorage.setItem("eventPopupDontShowUntil", tomorrow.toISOString());
-    }
-  }, [dontShowToday]);
-
-  const handleToggleDontShow = useCallback(() => {
-    setDontShowToday(prev => !prev);
-  }, []);
-
-  if (!popupEnabled || activeEvents.length === 0) {
-    return null;
-  }
+  const goNotice = () => {
+    close(false);
+    document.getElementById("notice")?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
     <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
+      {open && (
+        <motion.div
+          key="popup"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="popup-title"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-scrim/60 p-4 backdrop-blur-sm sm:items-center"
+          onClick={() => close(false)}
+        >
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={handleClose}
-            className="fixed inset-0 bg-black/70 backdrop-blur-md z-[100]"
-          />
-
-          {/* Popup */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 30 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 30 }}
-            transition={{ type: "spring", duration: 0.6, bounce: 0.3 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-[92%] max-w-[520px]"
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            ref={trapRef}
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-lg outline-none"
           >
-            <div className="relative rounded-[8px] bg-gradient-to-b from-[#1a2234] via-[#141c2e] to-[#0d1320] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)] border border-white/[0.08]">
-
-              {/* Decorative Elements */}
-              <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[8px]">
-                <div className="absolute -top-32 -right-32 w-64 h-64 bg-gradient-to-br from-amber-500/15 to-orange-500/5 rounded-full blur-[80px]" />
-                <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-gradient-to-tr from-emerald-500/10 to-teal-500/5 rounded-full blur-[80px]" />
-              </div>
-
-              {/* Close Button */}
+            <div className="relative h-36">
+              <img src="/images/gallery/special7/2.webp" alt="" aria-hidden className="h-full w-full object-cover" />
+              <div className="scrim-b absolute inset-0" />
               <button
-                onClick={handleClose}
-                className="absolute top-6 right-6 z-10 w-9 h-9 rounded-[4px] bg-white/[0.08] hover:bg-white/[0.15] backdrop-blur-sm flex items-center justify-center transition-colors duration-200 border border-white/[0.1]"
+                type="button"
+                aria-label="닫기"
+                onClick={() => close(false)}
+                className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-scrim/50 text-on-image hover:bg-scrim/70"
               >
-                <X className="w-5 h-5 text-white/70" />
+                <X className="h-4 w-4" />
               </button>
-
-              {/* Header */}
-              <div className="relative pt-12 pb-6 px-10 text-center">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring", bounce: 0.5 }}
-                  className="inline-flex items-center justify-center w-[72px] h-[72px] rounded-[12px] bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 shadow-[0_8px_32px_rgba(251,146,60,0.4)] mb-5"
-                >
-                  <Sparkles className="w-9 h-9 text-white drop-shadow-lg" />
-                </motion.div>
-                <h2 className="text-[26px] font-bold text-white tracking-tight">
-                  특별 이벤트
+              <div className="absolute inset-x-0 bottom-0 p-5 text-on-image">
+                <p className="eyebrow text-[11px] text-on-image-muted">{pensionInfo.nameEn}</p>
+                <h2 id="popup-title" className="mt-1 font-serif text-xl font-semibold">
+                  이벤트 · 이용 안내
                 </h2>
-                <p className="text-white/45 text-[14px] mt-1.5 font-medium">숲속의바다 펜션</p>
-              </div>
-
-              {/* Events - 카드 구분 강화 */}
-              <div className="px-6 pb-6 space-y-6">
-                {activeEvents.map((event, idx) => (
-                  <motion.div
-                    key={event.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + idx * 0.1 }}
-                    className="relative"
-                  >
-                    <div
-                      className="relative px-6 pt-5 pb-6 rounded-[8px] border-2 transition-all duration-300"
-                      style={{
-                        background: `linear-gradient(145deg, ${event.color}18, ${event.color}08)`,
-                        borderColor: `${event.color}50`,
-                        boxShadow: `0 4px 20px ${event.color}15, inset 0 1px 0 ${event.color}20`
-                      }}
-                    >
-                      {/* Badge - 카드 안쪽 상단에 배치 */}
-                      {event.badge && (
-                        <span
-                          className="inline-block px-4 py-1.5 rounded-[4px] text-[13px] font-bold text-white mb-3"
-                          style={{
-                            background: `linear-gradient(135deg, ${event.color}, ${event.color}dd)`,
-                            boxShadow: `0 2px 8px ${event.color}40`
-                          }}
-                        >
-                          {event.badge}
-                        </span>
-                      )}
-
-                      {/* Title */}
-                      <h3 className="font-bold text-white text-[16px] leading-relaxed">
-                        {event.title}
-                      </h3>
-
-                      {/* Period */}
-                      <p className="text-white/45 text-[12px] mt-1.5 mb-3 font-medium">
-                        {event.period}
-                      </p>
-
-                      {/* Highlight */}
-                      {event.highlight && (
-                        <div
-                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[4px] text-[14px] font-bold mb-3"
-                          style={{
-                            background: `${event.color}25`,
-                            color: event.color
-                          }}
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          {event.highlight}
-                        </div>
-                      )}
-
-                      {/* Description */}
-                      <p className="text-white/65 text-[13px] leading-[1.7]">
-                        {event.description}
-                      </p>
-
-                      {/* Conditions */}
-                      {event.conditions && event.conditions.length > 0 && (
-                        <p className="text-white/35 text-[11px] mt-3 pl-3 border-l-2 border-white/[0.15] leading-relaxed">
-                          {event.conditions[0]}
-                        </p>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Footer */}
-              <div className="px-6 pb-8 pt-2">
-                <div className="flex items-center justify-between gap-4">
-                  <label
-                    className="flex items-center gap-2.5 cursor-pointer group"
-                    onClick={handleToggleDontShow}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-[3px] flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
-                        dontShowToday
-                          ? "bg-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.35)]"
-                          : "bg-white/[0.1] group-hover:bg-white/[0.18] border border-white/[0.12]"
-                      }`}
-                    >
-                      {dontShowToday && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                    </div>
-                    <span className="text-[14px] text-white/55 group-hover:text-white/75 transition-colors">
-                      24시간 동안 열지 않음
-                    </span>
-                  </label>
-
-                  <button
-                    onClick={handleClose}
-                    className="px-6 py-3 bg-white/[0.1] hover:bg-white/[0.18] rounded-[4px] text-white text-[15px] font-semibold transition-colors duration-200 border border-white/[0.1] flex-shrink-0"
-                  >
-                    닫기
-                  </button>
-                </div>
               </div>
             </div>
+
+            <div className="max-h-[50vh] overflow-y-auto p-5">
+              {activeEvents.length > 0 && (
+                <ul className="space-y-3">
+                  {activeEvents.slice(0, 5).map((e) => (
+                    <li key={e.id} className="flex gap-3">
+                      <Sparkles className="mt-1 h-4 w-4 shrink-0 text-accent-strong" />
+                      <div className="min-w-0">
+                        <p className="text-[15px] font-semibold leading-snug">
+                          {e.title}
+                          {e.highlight && <span className="ml-2 font-display text-sm text-accent-strong">{e.highlight}</span>}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{e.period}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {pinned && (
+                <p className="mt-4 rounded-md border border-border bg-muted px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+                  📌 {pinned.title}
+                </p>
+              )}
+              <p className="mt-4 text-xs text-muted-foreground">
+                입실 {pensionInfo.checkIn}(연휴·성수기 {pensionInfo.checkInPeak}) · 퇴실 {pensionInfo.checkOut} · 직접 예약 문의 {pensionInfo.landline}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
+              <button type="button" onClick={() => close(true)} className="text-sm text-muted-foreground hover:text-foreground">
+                오늘 하루 보지 않기
+              </button>
+              <button type="button" onClick={goNotice} className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+                자세히 보기 <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   );

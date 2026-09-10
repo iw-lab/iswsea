@@ -1,156 +1,69 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { motion, useInView } from "framer-motion";
-import { MapPin, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRef } from "react";
+import { Car, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { tours } from "@/data/pension";
+import { Badge, Photo, Reveal, SectionHeading } from "@/components/ui";
 
 export default function Tour() {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [imageIndices, setImageIndices] = useState<Record<string, number>>(
-    Object.fromEntries(tours.map((t) => [t.id, 0]))
-  );
-
-  const nextImage = (tourId: string, maxLength: number) => {
-    setImageIndices((prev) => ({
-      ...prev,
-      [tourId]: prev[tourId] === maxLength - 1 ? 0 : prev[tourId] + 1,
-    }));
-  };
-
-  const prevImage = (tourId: string, maxLength: number) => {
-    setImageIndices((prev) => ({
-      ...prev,
-      [tourId]: prev[tourId] === 0 ? maxLength - 1 : prev[tourId] - 1,
-    }));
+  const rowRef = useRef<HTMLUListElement>(null);
+  const scrollBy = (dir: 1 | -1) => {
+    const el = rowRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.min(el.clientWidth * 0.8, 720), behavior: "smooth" });
   };
 
   return (
-    <section id="tour" className="bg-[var(--background-alt)] pt-8 pb-10 lg:pt-8 lg:pb-6" ref={ref}>
-      <div className="w-full max-w-none px-4 sm:px-6 lg:px-16 xl:px-24">
-        {/* Section Header - 더 컴팩트하게 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-6 lg:mb-4"
-        >
-          <p className="text-[var(--secondary)] dark:text-[var(--secondary-light)] text-sm tracking-[0.3em] uppercase mb-2">
-            TOUR GUIDE
-          </p>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--foreground)] font-display">
-            주변 여행지
-          </h2>
-          <p className="text-[var(--foreground-muted)] text-sm lg:text-base mt-3">
-            <span className="sm:hidden">태안, 안면도의 아름다운<br />여행지를 소개합니다</span>
-            <span className="hidden sm:inline">태안, 가로림만, 안면도의 아름다운 여행지를 소개합니다</span>
-          </p>
-        </motion.div>
-
-        {/* Tour Grid - PC에서 더 컴팩트한 카드 */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-3">
-          {tours.map((tour, index) => (
-            <motion.div
-              key={tour.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.4, delay: index * 0.05 }}
-              className="group bg-[var(--card)] rounded-xl lg:rounded-lg overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300"
-            >
-              {/* Image Carousel - PC에서 더 작은 비율 */}
-              <div className="relative aspect-[16/10] lg:aspect-[16/8] overflow-hidden">
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                  style={{
-                    backgroundImage: `url(${tour.images[imageIndices[tour.id]]})`,
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                {/* Navigation */}
-                <button
-                  onClick={() => prevImage(tour.id, tour.images.length)}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1 bg-white/80 hover:bg-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 text-gray-800" />
-                </button>
-                <button
-                  onClick={() => nextImage(tour.id, tour.images.length)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 bg-white/80 hover:bg-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg"
-                >
-                  <ChevronRight className="w-3.5 h-3.5 text-gray-800" />
-                </button>
-
-                {/* Dots */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                  {tour.images.map((_, idx) => (
-                    <span
-                      key={idx}
-                      className={`w-1 h-1 rounded-full transition-all ${
-                        idx === imageIndices[tour.id]
-                          ? "bg-white w-3"
-                          : "bg-white/50"
-                      }`}
-                    />
-                  ))}
-                </div>
-
-                {/* Tour Number Badge */}
-                <div className="absolute top-2 left-2 px-2 py-0.5 bg-[var(--primary)] text-white rounded-full text-[10px] font-bold">
-                  {String(index + 1).padStart(2, "0")}
-                </div>
-              </div>
-
-              {/* Content - PC에서 더 컴팩트하게 */}
-              <div className="p-3 lg:p-2">
-                <div className="flex items-center justify-between mb-0.5">
-                  <h3 className="text-base lg:text-xs font-bold text-[var(--foreground)]">
-                    {tour.name}
-                  </h3>
-                  <span className="hidden lg:flex items-center gap-1 text-[10px] text-[var(--foreground-muted)]">
-                    <Clock className="w-2.5 h-2.5" />
-                    {tour.distance}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3 lg:hidden mb-2 text-xs text-[var(--foreground-muted)]">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {tour.distance}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5" />
-                    펜션에서
-                  </span>
-                </div>
-
-                <p className="text-[var(--foreground-muted)] text-xs lg:text-[10px] leading-relaxed line-clamp-2 lg:line-clamp-1">
-                  {tour.description}
-                </p>
-              </div>
-            </motion.div>
-          ))}
+    <section id="tour" className="section-y scroll-mt-16 border-t border-border bg-secondary/60">
+      <div className="container-x">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <SectionHeading
+            eyebrow="TOUR"
+            title="태안, 가로림만, 안면도 여행"
+            lead="펜션에서 차로 6분이면 꾸지나무골 해변, 10분이면 만대포구. 태안의 바다와 숲을 하루에 다 담을 수 있습니다."
+          />
+          <div className="hidden gap-2 lg:flex">
+            <button type="button" aria-label="이전" onClick={() => scrollBy(-1)} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-accent">
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button type="button" aria-label="다음" onClick={() => scrollBy(1)} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card hover:bg-accent">
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
         </div>
-
-        {/* Tidal Time Link */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="text-center mt-6 lg:mt-5"
-        >
-          <a
-            href="http://www.always-design.com/tour/taean/taean_badatime.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-8 py-4 lg:px-12 lg:py-4 bg-white/10 backdrop-blur-xl border border-white/30 text-white font-bold text-sm lg:text-base rounded-full transition-all hover:scale-105 hover:bg-white/20 shadow-xl hover:shadow-2xl"
-          >
-            <Clock className="w-4 h-4 lg:w-5 lg:h-5" />
-            <span>갯벌체험 시간표 보기</span>
-          </a>
-        </motion.div>
       </div>
+
+      <Reveal delay={0.1} className="mt-10 lg:mt-14">
+        <ul ref={rowRef} className="snap-row px-5 sm:px-8 lg:px-[max(3rem,calc((100vw-80rem)/2+3rem))]" aria-label="주변 여행지">
+          {tours.map((t) => (
+            <li key={t.id} className="w-[82vw] max-w-[360px] sm:w-[340px]">
+              <article className="flex h-full flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                {t.images.length > 0 ? (
+                  <Photo src={t.images[0]} alt={t.name} ratio="aspect-[4/3]">
+                    <div className="absolute left-3 top-3">
+                      <Badge tone="onImage">
+                        <Car className="h-3 w-3" /> {t.distance}
+                      </Badge>
+                    </div>
+                  </Photo>
+                ) : (
+                  <div className="relative flex aspect-[4/3] items-end bg-gradient-to-br from-primary/15 via-secondary to-accent-strong/15 p-4">
+                    <MapPin className="absolute right-4 top-4 h-8 w-8 text-primary/40" />
+                    <Badge tone="gold">
+                      <Car className="h-3 w-3" /> {t.distance}
+                    </Badge>
+                  </div>
+                )}
+                <div className="flex flex-1 flex-col p-5">
+                  <p className="font-display text-xs tracking-widest text-accent-strong">TOUR GUIDE {t.number}</p>
+                  <h3 className="mt-1 font-serif text-xl font-semibold">{t.name}</h3>
+                  <p className="mt-3 line-clamp-4 text-[15px] leading-relaxed text-muted-foreground">{t.description}</p>
+                </div>
+              </article>
+            </li>
+          ))}
+        </ul>
+      </Reveal>
     </section>
   );
 }

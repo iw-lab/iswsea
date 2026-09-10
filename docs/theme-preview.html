@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>숲속의바다 — 테마 3안 프리뷰</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Pretendard Variable",system-ui,sans-serif;background:#111;color:#eee;padding:24px;line-height:1.6}
+  h1{font-size:22px;margin-bottom:6px}
+  .lead{color:#aaa;font-size:14px;margin-bottom:24px}
+  .theme{margin-bottom:40px}
+  .theme > h2{font-size:18px;margin-bottom:4px}
+  .theme > .desc{color:#aaa;font-size:13px;margin-bottom:12px}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .panel{border-radius:12px;overflow:hidden;border:1px solid #333;padding:0;
+    background:hsl(var(--background));color:hsl(var(--foreground));font-size:15px}
+  .panel .tag{font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.6;padding:10px 16px 0}
+  .hero{position:relative;height:190px;background:
+    linear-gradient(to top, hsl(var(--background)) 0%, hsl(var(--background)/.2) 45%, transparent 100%),
+    var(--hero-grad),
+    url('/images/gallery/special1/3.jpg') center/cover;display:flex;flex-direction:column;justify-content:flex-end;padding:16px}
+  .hero .eyebrow{font-family:"Cormorant Garamond",serif;letter-spacing:.35em;font-size:12px;color:hsl(var(--accent-strong))}
+  .hero h3{font-family:"Noto Serif KR",serif;font-weight:500;font-size:24px;line-height:1.3;margin:4px 0 2px;color:hsl(var(--foreground))}
+  .hero p{font-size:13px;color:hsl(var(--muted-foreground))}
+  .body{padding:16px;display:grid;gap:14px}
+  .swatches{display:flex;gap:6px}
+  .sw{flex:1;height:34px;border-radius:calc(var(--radius) - 2px);border:1px solid hsl(var(--border));display:flex;align-items:flex-end;padding:3px 5px;font-size:9px;color:#fff;text-shadow:0 0 3px #0008}
+  .btns{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{height:40px;padding:0 18px;border-radius:var(--radius);font-weight:600;font-size:14px;display:inline-flex;align-items:center;border:1px solid transparent;cursor:pointer}
+  .btn.primary{background:hsl(var(--primary));color:hsl(var(--primary-foreground))}
+  .btn.secondary{background:hsl(var(--secondary));color:hsl(var(--secondary-foreground));border-color:hsl(var(--border))}
+  .btn.ghost{background:transparent;color:hsl(var(--foreground));border-color:hsl(var(--border))}
+  .btn.accent{background:hsl(var(--accent-strong));color:hsl(var(--accent-strong-foreground))}
+  .row{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
+  .card{background:hsl(var(--card));color:hsl(var(--card-foreground));border:1px solid hsl(var(--border));border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .card img{width:100%;height:96px;object-fit:cover;display:block}
+  .card .c{padding:12px}
+  .card .name{font-family:"Noto Serif KR",serif;font-size:17px;font-weight:600}
+  .card .en{font-family:"Cormorant Garamond",serif;letter-spacing:.2em;font-size:11px;color:hsl(var(--muted-foreground))}
+  .card .meta{font-size:12px;color:hsl(var(--muted-foreground));margin:4px 0 8px}
+  .card .price{font-weight:700;font-size:15px}
+  .card .price small{font-weight:400;font-size:11px;color:hsl(var(--muted-foreground))}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;background:hsl(var(--accent-strong)/.15);color:hsl(var(--accent-strong));border:1px solid hsl(var(--accent-strong)/.35)}
+  .badge.solid{background:hsl(var(--primary));color:hsl(var(--primary-foreground));border-color:transparent}
+  .form{display:grid;gap:8px;align-content:start}
+  .form label{font-size:12px;color:hsl(var(--muted-foreground))}
+  .form input{height:40px;border-radius:var(--radius);border:1px solid hsl(var(--input));background:hsl(var(--background));color:hsl(var(--foreground));padding:0 12px;font:inherit;font-size:14px}
+  .form input:focus{outline:2px solid hsl(var(--ring));outline-offset:2px}
+  .notice{border-left:3px solid hsl(var(--primary));padding:8px 12px;background:hsl(var(--muted));border-radius:0 var(--radius) var(--radius) 0;font-size:13px}
+  .notice b{display:block;font-size:13px}
+  .notice span{color:hsl(var(--muted-foreground));font-size:12px}
+  .muted{color:hsl(var(--muted-foreground));font-size:12px}
+  .k{font-size:11px;opacity:.55}
+
+  /* ===== A. Pine & Sand ===== */
+  .A{--radius:.5rem;--shadow:0 6px 16px -8px rgb(20 40 30/.25);--hero-grad:linear-gradient(180deg,rgb(20 45 35/.15),transparent)}
+  .A.light{--background:40 33% 97%;--foreground:160 18% 13%;--card:0 0% 100%;--card-foreground:160 18% 13%;
+    --primary:158 32% 26%;--primary-foreground:40 33% 98%;--secondary:40 24% 92%;--secondary-foreground:160 18% 18%;
+    --muted:40 24% 93%;--muted-foreground:160 8% 40%;--border:40 16% 86%;--input:40 16% 82%;--ring:158 32% 32%;
+    --accent-strong:34 62% 44%;--accent-strong-foreground:40 33% 98%}
+  .A.dark{--background:160 14% 7%;--foreground:40 20% 94%;--card:160 12% 10%;--card-foreground:40 20% 94%;
+    --primary:150 34% 62%;--primary-foreground:160 20% 8%;--secondary:160 10% 15%;--secondary-foreground:40 20% 92%;
+    --muted:160 10% 14%;--muted-foreground:40 10% 66%;--border:160 10% 18%;--input:160 10% 22%;--ring:150 34% 62%;
+    --accent-strong:36 70% 62%;--accent-strong-foreground:160 20% 8%;--shadow:none}
+
+  /* ===== B. Driftwood ===== */
+  .B{--radius:.25rem;--shadow:none;--hero-grad:linear-gradient(180deg,rgb(0 0 0/.05),transparent)}
+  .B.light{--background:30 14% 98%;--foreground:24 8% 14%;--card:30 14% 98%;--card-foreground:24 8% 14%;
+    --primary:24 8% 20%;--primary-foreground:30 14% 98%;--secondary:30 10% 93%;--secondary-foreground:24 8% 18%;
+    --muted:30 10% 94%;--muted-foreground:24 6% 42%;--border:30 8% 86%;--input:30 8% 80%;--ring:24 8% 30%;
+    --accent-strong:150 14% 38%;--accent-strong-foreground:30 14% 98%}
+  .B.dark{--background:24 8% 8%;--foreground:30 14% 93%;--card:24 8% 10%;--card-foreground:30 14% 93%;
+    --primary:30 14% 90%;--primary-foreground:24 8% 10%;--secondary:24 6% 15%;--secondary-foreground:30 14% 90%;
+    --muted:24 6% 14%;--muted-foreground:30 8% 64%;--border:24 6% 19%;--input:24 6% 24%;--ring:30 14% 80%;
+    --accent-strong:150 18% 60%;--accent-strong-foreground:24 8% 10%}
+
+  /* ===== C. Midnight Tide ===== */
+  .C{--radius:.75rem;--shadow:0 10px 30px -12px rgb(0 0 0/.5);--hero-grad:linear-gradient(135deg,rgb(20 90 110/.45),rgb(180 110 40/.25))}
+  .C.dark{--background:210 30% 8%;--foreground:40 20% 95%;--card:210 26% 11%;--card-foreground:40 20% 95%;
+    --primary:188 55% 48%;--primary-foreground:210 30% 6%;--secondary:210 20% 16%;--secondary-foreground:40 20% 92%;
+    --muted:210 20% 14%;--muted-foreground:210 10% 66%;--border:210 18% 20%;--input:210 18% 24%;--ring:188 55% 55%;
+    --accent-strong:32 72% 60%;--accent-strong-foreground:210 30% 6%}
+  .C.light{--background:200 30% 97%;--foreground:210 30% 12%;--card:0 0% 100%;--card-foreground:210 30% 12%;
+    --primary:190 60% 30%;--primary-foreground:200 30% 98%;--secondary:200 20% 92%;--secondary-foreground:210 30% 16%;
+    --muted:200 20% 93%;--muted-foreground:210 10% 42%;--border:200 16% 86%;--input:200 16% 80%;--ring:190 60% 36%;
+    --accent-strong:30 70% 44%;--accent-strong-foreground:200 30% 98%;--shadow:0 10px 30px -14px rgb(20 60 90/.25)}
+</style>
+</head>
+<body>
+<h1>숲속의바다 — 테마 3안 프리뷰</h1>
+<p class="lead">각 안은 라이트 / 다크를 나란히 보여줍니다. 버튼 3종 · 객실 카드 · 뱃지 · 폼 · 공지 · 색 스와치. (사진은 실제 사이트 갤러리)</p>
+
+<script>
+const THEMES = [
+  {k:'A', name:'A안 · Pine & Sand (정석)', desc:'딥 포레스트 그린 + 웜 샌드 배경 + 노을 골드 포인트. 세리프 헤드라인. 라이트 기본. 펜션 관습을 따르는 안전하고 따뜻한 프리미엄.',
+   eyebrow:'SEA IN THE FOREST', h:'숲을 지나면,<br>바다가 열립니다', p:'태안 가로림만 언덕 위, 전 객실 오션뷰 목조 펜션'},
+  {k:'B', name:'B안 · Driftwood (차분·에디토리얼)', desc:'무채 웜그레이 + 세이지 한 점. 얇은 선·큰 여백·작은 radius. 잡지 같은 절제. 사진이 가장 돋보이는 안.',
+   eyebrow:'STAY · TAEAN', h:'고요한 언덕,<br>잔잔한 바다', p:'숲속의바다에서 보내는 느린 하루'},
+  {k:'C', name:'C안 · Midnight Tide (개성·다크 기본)', desc:'미드나잇 네이비 + 오션 틸 + 코퍼 골드. 그라데이션 히어로·큰 radius. 지금 사이트의 다크 무드를 세련되게 진화.',
+   eyebrow:'SEA IN THE FOREST', h:'파도 소리로 잠들고,<br>새소리로 눈뜨는 곳', p:'일출과 월출을 객실에서 — 숲속의바다'},
+];
+function panel(t, mode){
+  return `<div class="panel ${t.k} ${mode}">
+    <div class="tag">${t.k} · ${mode}</div>
+    <div class="hero"><div class="eyebrow">${t.eyebrow}</div><h3>${t.h}</h3><p>${t.p}</p></div>
+    <div class="body">
+      <div class="swatches">
+        <div class="sw" style="background:hsl(var(--primary))">primary</div>
+        <div class="sw" style="background:hsl(var(--accent-strong))">accent</div>
+        <div class="sw" style="background:hsl(var(--secondary));color:hsl(var(--foreground));text-shadow:none">secondary</div>
+        <div class="sw" style="background:hsl(var(--muted));color:hsl(var(--foreground));text-shadow:none">muted</div>
+        <div class="sw" style="background:hsl(var(--card));color:hsl(var(--foreground));text-shadow:none">card</div>
+      </div>
+      <div class="btns">
+        <button class="btn primary">실시간 예약</button>
+        <button class="btn secondary">객실 보기</button>
+        <button class="btn ghost">전화 문의</button>
+        <button class="btn accent">이벤트</button>
+      </div>
+      <div class="row">
+        <div class="card">
+          <img src="/images/gallery/room11/1.jpg" alt="">
+          <div class="c">
+            <div class="en">ROSANNA VIP</div>
+            <div class="name">로잔나VIP <span class="badge">오션뷰</span></div>
+            <div class="meta">66㎡ · 기준 2인 / 최대 4인 · 월풀형 욕조</div>
+            <div class="price">200,000원 <small>/ 주중 1박</small></div>
+          </div>
+        </div>
+        <div class="form">
+          <div><span class="badge solid">평일 12시 퇴실</span> <span class="badge">연박 최대 25%</span></div>
+          <label>예약자 이름</label><input placeholder="홍길동">
+          <label>연락처</label><input placeholder="010-0000-0000">
+          <div class="notice"><b>워터 슬라이드 야외 수영장 운영 안내</b><span>6월 27일 ~ 8월 31일 · 10:00 ~ 19:00</span></div>
+        </div>
+      </div>
+      <p class="muted">본문 15px · 행간 1.7 · Pretendard / 헤드라인 Noto Serif KR / 영문 라벨 Cormorant Garamond</p>
+    </div>
+  </div>`;
+}
+document.write(THEMES.map(t => `<section class="theme"><h2>${t.name}</h2><p class="desc">${t.desc}</p><div class="pair">${panel(t,'light')}${panel(t,'dark')}</div></section>`).join(''));
+</script>
+</body>
+</html>

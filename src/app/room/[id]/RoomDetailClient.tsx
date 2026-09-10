@@ -1,562 +1,315 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Waves,
-  Flame,
-  Sparkles,
-  Users,
-  Phone,
-  ExternalLink,
-  Home,
-  Maximize2,
-  Grid3X3,
-  MapPin,
-  Clock,
-} from "lucide-react";
-import { rooms, pensionInfo } from "@/data/pension";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Maximize2, Phone, Users, X, Bath, Flame, Waves, Wine, AlertCircle } from "lucide-react";
+import { rooms, roomCommon, pensionInfo, priceInfo, formatPrice, type Room } from "@/data/pension";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import FloatingCTA from "@/components/FloatingCTA";
+import { Badge, ButtonLink, Photo, Reveal, useFocusTrap } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
-const featureIcons: Record<string, React.ElementType> = {
-  "오션뷰": Waves,
-  "개별 테라스": ExternalLink,
-  "바베큐": Flame,
-  "스파": Sparkles,
-};
+const amenityIcons = [Waves, Bath, Flame, Wine];
 
-interface RoomDetailClientProps {
-  roomId: string;
+function Lightbox({ room, index, onClose, onMove }: { room: Room; index: number; onClose: () => void; onMove: (d: 1 | -1) => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") onMove(1);
+      if (e.key === "ArrowLeft") onMove(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose, onMove]);
+  const trapRef = useFocusTrap<HTMLDivElement>(true);
+
+  const img = room.images[index];
+  return (
+    <motion.div
+      ref={trapRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${room.name} 사진 크게 보기`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-scrim/95 p-4"
+      onClick={onClose}
+    >
+      <button type="button" aria-label="닫기" onClick={onClose} className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-on-image/10 text-on-image hover:bg-on-image/20">
+        <X className="h-5 w-5" />
+      </button>
+      <button type="button" aria-label="이전 사진" onClick={(e) => { e.stopPropagation(); onMove(-1); }} className="absolute left-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-on-image/10 text-on-image hover:bg-on-image/20 sm:left-6">
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <button type="button" aria-label="다음 사진" onClick={(e) => { e.stopPropagation(); onMove(1); }} className="absolute right-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-on-image/10 text-on-image hover:bg-on-image/20 sm:right-6">
+        <ChevronRight className="h-5 w-5" />
+      </button>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.img
+          key={img.src}
+          src={img.src}
+          alt={img.alt}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-[86vh] max-w-full rounded-md object-contain shadow-lg"
+        />
+      </AnimatePresence>
+      <p className="tnum absolute bottom-5 left-1/2 -translate-x-1/2 font-display text-sm tracking-widest text-on-image-muted">
+        {index + 1} / {room.images.length}
+      </p>
+    </motion.div>
+  );
 }
 
-export default function RoomDetailClient({ roomId }: RoomDetailClientProps) {
+export default function RoomDetailClient({ roomId }: { roomId: string }) {
   const room = rooms.find((r) => r.id === roomId);
+  const [current, setCurrent] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
 
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [viewMode, setViewMode] = useState<"slider" | "grid">("slider");
-
-  const nextImage = () => {
-    if (!room) return;
-    setCurrentImageIndex((prev) => (prev === room.images.length - 1 ? 0 : prev + 1));
-  };
-
-  const prevImage = () => {
-    if (!room) return;
-    setCurrentImageIndex((prev) => (prev === 0 ? room.images.length - 1 : prev - 1));
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsFullscreen(false);
-      if (e.key === "ArrowLeft") prevImage();
-      if (e.key === "ArrowRight") nextImage();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentImageIndex, room]);
+  const move = useCallback(
+    (d: 1 | -1) => {
+      if (!room) return;
+      setCurrent((c) => (c + d + room.images.length) % room.images.length);
+    },
+    [room]
+  );
+  const closeLightbox = useCallback(() => setLightbox(false), []);
 
   if (!room) {
     return (
-      <div className="min-h-screen bg-[#0F1419] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-white mb-4">객실을 찾을 수 없습니다</h1>
-          <Link href="/#rooms" className="text-[#4A9F6D] hover:underline">
-            객실 목록으로 돌아가기
-          </Link>
-        </div>
-      </div>
+      <>
+        <Header transparent={false} />
+        <main className="container-x flex min-h-[70vh] flex-col items-center justify-center pt-24 text-center">
+          <p className="eyebrow text-accent-strong">404</p>
+          <h1 className="mt-3 font-serif text-3xl font-semibold">객실을 찾을 수 없습니다</h1>
+          <ButtonLink href="/#rooms" className="mt-8">
+            <ArrowLeft className="h-4 w-4" /> 객실 목록으로
+          </ButtonLink>
+        </main>
+        <Footer />
+      </>
     );
   }
 
+  const idx = rooms.findIndex((r) => r.id === room.id);
+  const prev = rooms[(idx - 1 + rooms.length) % rooms.length];
+  const next = rooms[(idx + 1) % rooms.length];
+  const others = rooms.filter((r) => r.id !== room.id).slice(0, 4);
+  const priceRows = [
+    { label: "주중 (일~목)", value: room.prices.weekday },
+    { label: "금요일", value: room.prices.friday },
+    { label: "주말 · 공휴일 전날", value: room.prices.weekend, strong: true },
+    { label: "일요일", value: room.prices.sunday },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#0F1419]">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0F1419]/95 backdrop-blur-md border-b border-[#2a3a4a]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/#rooms" className="flex items-center gap-2 text-white hover:text-[#4A9F6D] transition-colors">
-              <ChevronLeft className="w-5 h-5" />
-              <span>객실 목록</span>
+    <>
+      <Header />
+      <main>
+        {/* 히어로 */}
+        <section className="relative h-[68svh] min-h-[440px] bg-scrim text-on-image">
+          <AnimatePresence initial={false}>
+            <motion.img
+              key={room.images[current].src}
+              src={room.images[current].src}
+              alt={room.images[current].alt}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6 }}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          </AnimatePresence>
+          <div className="scrim-b absolute inset-0" />
+          <div className="scrim-t absolute inset-x-0 top-0 h-40" />
+          <div className="container-x relative flex h-full flex-col justify-end pb-8">
+            <Link href="/#rooms" className="mb-auto mt-24 inline-flex w-fit items-center gap-1.5 rounded-full border border-on-image/35 px-4 py-2 text-sm font-semibold backdrop-blur-sm hover:bg-on-image/15">
+              <ArrowLeft className="h-4 w-4" /> 객실 목록
             </Link>
-            <div className="text-center">
-              <p className="text-[#4A90A4] text-xs tracking-wider">{room.nameEn}</p>
-              <h1 className="text-white font-bold">{room.name}</h1>
-            </div>
-            <Link href="/" className="flex items-center gap-2 text-white hover:text-[#4A9F6D] transition-colors">
-              <Home className="w-5 h-5" />
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="pt-16">
-        {/* Hero Image Section */}
-        <section className="relative">
-          {/* View Mode Toggle */}
-          <div className="absolute top-4 right-4 z-20 flex gap-2">
-            <button
-              onClick={() => setViewMode("slider")}
-              className={`p-2 rounded-lg transition-all ${
-                viewMode === "slider"
-                  ? "bg-[#4A9F6D] text-white"
-                  : "bg-black/50 text-white/70 hover:text-white"
-              }`}
-            >
-              <Maximize2 className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-lg transition-all ${
-                viewMode === "grid"
-                  ? "bg-[#4A9F6D] text-white"
-                  : "bg-black/50 text-white/70 hover:text-white"
-              }`}
-            >
-              <Grid3X3 className="w-5 h-5" />
-            </button>
-          </div>
-
-          {viewMode === "slider" ? (
-            <>
-              {/* Main Image */}
-              <div
-                className="relative h-[60vh] lg:h-[70vh] cursor-pointer"
-                onClick={() => setIsFullscreen(true)}
-              >
-                <motion.div
-                  key={currentImageIndex}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: `url(${room.images[currentImageIndex].src})` }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0F1419] via-transparent to-transparent" />
-
-                {/* Navigation Arrows */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/50 hover:bg-black/70 rounded-full text-white transition-all hover:scale-110"
-                >
-                  <ChevronLeft className="w-8 h-8" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/50 hover:bg-black/70 rounded-full text-white transition-all hover:scale-110"
-                >
-                  <ChevronRight className="w-8 h-8" />
-                </button>
-
-                {/* Image Counter */}
-                <div className="absolute bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 bg-black/60 backdrop-blur-sm rounded-full text-white">
-                  <span className="text-2xl font-bold">{currentImageIndex + 1}</span>
-                  <span className="text-white/60 mx-2">/</span>
-                  <span className="text-white/60">{room.images.length}</span>
+            <div className="flex flex-wrap items-end justify-between gap-6">
+              <div>
+                <div className="flex flex-wrap gap-1.5">
+                  {room.building && <Badge tone="onImage">{room.building}</Badge>}
+                  {room.vip && <Badge tone="onImage" className="border-accent-strong/60 text-accent-strong">VIP</Badge>}
+                  <Badge tone="onImage">오션뷰</Badge>
                 </div>
-
-                {/* Click to expand hint */}
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/60 text-sm flex items-center gap-2">
-                  <Maximize2 className="w-4 h-4" />
-                  클릭하여 전체화면으로 보기
-                </div>
-              </div>
-
-              {/* Thumbnail Strip */}
-              <div className="bg-[#0d1520] py-4 px-4 overflow-x-auto">
-                <div className="flex gap-3 justify-center">
-                  {room.images.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentImageIndex(idx)}
-                      className={`flex-shrink-0 w-20 h-14 lg:w-28 lg:h-20 rounded-lg overflow-hidden border-2 transition-all ${
-                        idx === currentImageIndex
-                          ? "border-[#4A9F6D] scale-105 shadow-lg shadow-[#4A9F6D]/30"
-                          : "border-transparent opacity-50 hover:opacity-100"
-                      }`}
-                    >
-                      <div
-                        className="w-full h-full bg-cover bg-center"
-                        style={{ backgroundImage: `url(${img.src})` }}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : (
-            /* Grid View */
-            <div className="p-4 lg:p-8">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {room.images.map((img, idx) => (
-                  <motion.button
-                    key={idx}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: idx * 0.05 }}
-                    onClick={() => {
-                      setCurrentImageIndex(idx);
-                      setIsFullscreen(true);
-                    }}
-                    className="aspect-[4/3] rounded-xl overflow-hidden group relative"
-                  >
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                      style={{ backgroundImage: `url(${img.src})` }}
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
-                      <Maximize2 className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 rounded text-white text-sm">
-                      {idx + 1}
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Room Info Section - Premium Layout */}
-        <section className="w-full px-4 sm:px-6 lg:px-16 xl:px-24 py-8">
-          {/* Header */}
-          <div className="mb-8 pb-6 border-b border-[#2a3a4a]">
-            <p className="text-[#4A90A4] text-sm tracking-wider mb-1">{room.nameEn}</p>
-            <h2 className="text-3xl lg:text-4xl font-bold text-white mb-2">{room.name}</h2>
-            <p className="text-gray-400 text-base leading-relaxed">{room.description}</p>
-          </div>
-
-          {/* Two Column Grid - Map Left, Info Right */}
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Left Column - Map */}
-            <div className="p-5 bg-[#1a2332] rounded-2xl border border-[#2a3a4a] flex flex-col">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-[#4A9F6D]" />
-                객실 위치
-              </h3>
-              <div className="flex-1 rounded-xl overflow-hidden bg-[#e8f0e8]">
-                <img
-                  src="/images/pension-map.png.png"
-                  alt="펜션 배치도"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="mt-4 p-4 bg-[#0d1520] rounded-xl text-center">
-                <p className="text-[#4A9F6D] font-bold text-lg">
-                  현재 객실: {room.name} ({room.nameEn})
+                <p className="eyebrow mt-4 text-on-image-muted">{room.nameEn}</p>
+                <h1 className="mt-1 font-serif text-fluid-4xl font-medium leading-tight">{room.name}</h1>
+                <p className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-on-image-muted">
+                  <span className="inline-flex items-center gap-1.5"><Maximize2 className="h-4 w-4" /> {room.size}</span>
+                  <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4" /> 기준 {room.capacity.standard}인 · 최대 {room.capacity.max}인</span>
                 </p>
               </div>
-            </div>
-
-            {/* Right Column - Info Card */}
-            <div className="flex flex-col gap-5">
-              {/* Reservation CTA - Premium Style */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2332] to-[#0d1520] border border-[#2a3a4a] p-8">
-                {/* Decorative Background */}
-                <div className="absolute -top-20 -right-20 w-40 h-40 bg-[#4A9F6D]/10 rounded-full blur-3xl" />
-                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#4A90A4]/10 rounded-full blur-2xl" />
-
-                <div className="relative z-10">
-                  {/* Room Title & Sub Info */}
-                  <div className="text-center mb-4">
-                    <h3 className="text-2xl font-bold text-white">{room.name}</h3>
-                    <p className="text-[#4A90A4] text-sm whitespace-nowrap">기준 {room.capacity.standard}명 / 최대 {room.capacity.max}명 ({room.size})</p>
-                  </div>
-
-                  {/* Room Info Table */}
-                  <div className="mb-4 rounded-xl overflow-hidden border border-[#2a3a4a]">
-                    {/* Header */}
-                    <div className="grid grid-cols-3 bg-[#0d1520] text-center text-xs">
-                      <div className="py-2 px-1 border-r border-[#2a3a4a] text-gray-400">객실명</div>
-                      <div className="py-2 px-1 border-r border-[#2a3a4a] text-gray-400">평수</div>
-                      <div className="py-2 px-1 text-gray-400">기준/최대</div>
-                    </div>
-                    {/* Data Row */}
-                    <div className="grid grid-cols-3 bg-[#1a2332] text-center text-xs">
-                      <div className="py-3 px-1 border-r border-[#2a3a4a] text-white font-medium">{room.name}</div>
-                      <div className="py-3 px-1 border-r border-[#2a3a4a] text-gray-300">{room.size}</div>
-                      <div className="py-3 px-1 text-gray-300">{room.capacity.standard}명/{room.capacity.max}명</div>
-                    </div>
-                  </div>
-
-                  {/* Price Table */}
-                  {room.prices && (
-                    <div className="mb-6 rounded-xl overflow-hidden border border-[#2a3a4a]">
-                      {/* Price Header */}
-                      <div className="grid grid-cols-4 bg-[#0d1520] text-center text-[10px] sm:text-xs">
-                        <div className="py-2 px-1 border-r border-[#2a3a4a] text-gray-400">
-                          <div>주중</div>
-                          <div className="text-[9px] text-gray-500">(월~목)</div>
-                        </div>
-                        <div className="py-2 px-1 border-r border-[#2a3a4a] text-gray-400">금요일</div>
-                        <div className="py-2 px-1 border-r border-[#2a3a4a] text-gray-400">
-                          <div>주말</div>
-                          <div className="text-[9px] text-gray-500">(토,공휴일전일)</div>
-                        </div>
-                        <div className="py-2 px-1 text-gray-400">일요일</div>
-                      </div>
-                      {/* Price Data Row */}
-                      <div className="grid grid-cols-4 bg-[#1a2332] text-center text-[11px] sm:text-sm">
-                        <div className="py-3 px-1 border-r border-[#2a3a4a] text-[#4A9F6D] font-bold">
-                          {room.prices.weekday.toLocaleString()}원
-                        </div>
-                        <div className="py-3 px-1 border-r border-[#2a3a4a] text-[#4A90A4] font-bold">
-                          {room.prices.friday.toLocaleString()}원
-                        </div>
-                        <div className="py-3 px-1 border-r border-[#2a3a4a] text-[#F5B041] font-bold">
-                          {room.prices.weekend.toLocaleString()}원
-                        </div>
-                        <div className="py-3 px-1 text-[#4A9F6D] font-bold">
-                          {room.prices.sunday.toLocaleString()}원
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Phone - Centered */}
-                  <a
-                    href={`tel:${pensionInfo.phone}`}
-                    className="flex items-center justify-center gap-3 text-white hover:text-[#4A9F6D] transition-colors mb-5"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-[#4A90A4]/20 flex items-center justify-center">
-                      <Phone className="w-5 h-5 text-[#4A90A4]" />
-                    </div>
-                    <span className="font-bold text-xl">{pensionInfo.phone}</span>
-                  </a>
-
-                  {/* CTA Buttons - 네이버 예약 & 실시간 예약 */}
-                  <div className="flex gap-3 mb-5">
-                    {/* 네이버 예약 */}
-                    <a
-                      href={pensionInfo.naverBookingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group relative flex-1 block py-5 overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-[#03C75A]/20"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#03C75A] via-[#04D861] to-[#03C75A] bg-[length:200%_100%] group-hover:animate-[shimmer_1.5s_infinite]" />
-                      <div className="absolute inset-[1px] rounded-[11px] bg-gradient-to-r from-[#03C75A] to-[#04D861]" />
-                      <div className="relative flex items-center justify-center gap-2">
-                        <span className="text-white font-bold text-base sm:text-lg tracking-wide">네이버 예약</span>
-                        <ExternalLink className="w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </a>
-
-                    {/* 실시간 예약 */}
-                    <a
-                      href={pensionInfo.yapenBookingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group relative flex-1 block py-5 overflow-hidden rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-[#FF6B35]/20"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#FF6B35] via-[#FF7F4D] to-[#FF6B35] bg-[length:200%_100%] group-hover:animate-[shimmer_1.5s_infinite]" />
-                      <div className="absolute inset-[1px] rounded-[11px] bg-gradient-to-r from-[#FF6B35] to-[#FF7F4D]" />
-                      <div className="relative flex items-center justify-center gap-2">
-                        <Clock className="w-4 h-4 text-white/80" />
-                        <span className="text-white font-bold text-base sm:text-lg tracking-wide">실시간 예약</span>
-                      </div>
-                    </a>
-                  </div>
-
-                  {/* Capacity & Check-in/out Info - Same Row */}
-                  <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm">
-                    <div className="flex items-center gap-2 whitespace-nowrap">
-                      <Users className="w-4 h-4 text-[#4A9F6D]" />
-                      <span className="text-gray-400">기준 <span className="text-white font-medium">{room.capacity.standard}명</span></span>
-                    </div>
-                    <div className="flex items-center gap-2 whitespace-nowrap">
-                      <Users className="w-4 h-4 text-[#4A90A4]" />
-                      <span className="text-gray-400">최대 <span className="text-white font-medium">{room.capacity.max}명</span></span>
-                    </div>
-                    <span className="text-[#2a3a4a] hidden sm:inline">|</span>
-                    <span className="text-gray-400 whitespace-nowrap">체크인 <span className="text-[#4A9F6D] font-medium">{pensionInfo.checkIn}</span></span>
-                    <span className="text-gray-400 whitespace-nowrap">체크아웃 <span className="text-[#4A90A4] font-medium">{pensionInfo.checkOut}</span></span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Features & Amenities Combined Card */}
-              <div className="bg-[#1a2332] rounded-2xl border border-[#2a3a4a] p-6">
-                {/* Features */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-bold text-[#4A9F6D] uppercase tracking-wider mb-4">객실 특징</h3>
-                  <div className="flex flex-wrap gap-3">
-                    {room.features.map((feature) => {
-                      const Icon = featureIcons[feature];
-                      return (
-                        <div key={feature} className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-[#4A9F6D]/10 to-transparent rounded-xl border border-[#4A9F6D]/20">
-                          {Icon && <Icon className="w-5 h-5 text-[#4A9F6D]" />}
-                          <span className="text-white font-medium">{feature}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-[#2a3a4a] my-6" />
-
-                {/* Amenities */}
-                <div>
-                  <h3 className="text-sm font-bold text-[#4A90A4] uppercase tracking-wider mb-4">구비 시설</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {["TV", "에어컨", "냉장고", "전자레인지", "취사도구", "드라이기", "욕실용품", "Wi-Fi"].map((item) => (
-                      <span key={item} className="px-4 py-2 bg-[#0d1520] text-gray-300 rounded-lg text-sm border border-[#2a3a4a] hover:border-[#4A90A4]/50 transition-colors">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Notice Card - Detailed Info from Original Site */}
-              <div className="bg-[#1a2332] rounded-2xl border border-[#2a3a4a] p-6">
-                <h3 className="text-sm font-bold text-[#F5B041] uppercase tracking-wider mb-5">NOTICE</h3>
-
-                <div className="space-y-4 text-gray-300 text-sm leading-relaxed">
-                  {/* Price Info */}
-                  <div className="pb-4 border-b border-[#2a3a4a]">
-                    <p className="mb-2">
-                      <span className="text-white">-</span> 객실 요금은 <span className="text-[#4A9F6D] font-medium">기준 인원 2명</span>에 대한 요금이며 기준 인원 초과시 <span className="text-[#4A9F6D] font-medium">1인당, 1일당 추가요금</span>이 발생합니다.
-                    </p>
-                    <p className="text-gray-400 ml-3">
-                      (유치원 미만 무료, 유치원 이상은 <span className="text-white font-medium">20,000원</span> 추가됩니다.)
-                    </p>
-                  </div>
-
-                  {/* BBQ Info */}
-                  <div className="pb-4 border-b border-[#2a3a4a]">
-                    <p className="mb-2">
-                      <span className="text-white">-</span> 바베큐 이용시 <span className="text-[#4A90A4] font-medium">숯+그릴 사용</span>은 2~4인 기준 1회 이용료 <span className="text-white font-medium">20,000원</span>/ 5~8인 기준 1회 이용료 <span className="text-white font-medium">30,000원</span>/ 9인이상 1회 이용료 <span className="text-white font-medium">40,000원</span>
-                    </p>
-                    <p className="text-gray-400 ml-3">
-                      - 바베큐는 각 객실 앞 개별테라스에서 가능합니다. <span className="text-[#4A90A4]">(전객실 개별)</span>
-                    </p>
-                  </div>
-
-                  {/* Rules */}
-                  <div className="space-y-2">
-                    <p>
-                      <span className="text-white">-</span> <span className="text-[#F5B041]">미성년자는 보호자 동반 없이 이용 하실 수 없습니다.</span>
-                    </p>
-                    <p>
-                      <span className="text-white">-</span> <span className="text-[#F5B041]">반려동물은 타 객실 및 손님을 위해 입실이 불가</span>하니 양해 바랍니다.
-                    </p>
-                    <p className="text-gray-400 ml-3">
-                      (동반 입실 시 당일 예약 취소에 해당됩니다.)
-                    </p>
-                    <p>
-                      <span className="text-white">-</span> <span className="text-[#F5B041]">객실 내에서는 절대 금연</span>입니다.
-                    </p>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2">
+                <button type="button" aria-label="이전 사진" onClick={() => move(-1)} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-on-image/35 backdrop-blur-sm hover:bg-on-image/15">
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="tnum font-display text-sm tracking-widest text-on-image-muted">
+                  {String(current + 1).padStart(2, "0")} / {String(room.images.length).padStart(2, "0")}
+                </span>
+                <button type="button" aria-label="다음 사진" onClick={() => move(1)} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-on-image/35 backdrop-blur-sm hover:bg-on-image/15">
+                  <ChevronRight className="h-5 w-5" />
+                </button>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Other Rooms */}
-        <section className="bg-[#0d1520] py-12">
-          <div className="w-full px-4 sm:px-6 lg:px-16 xl:px-24">
-            <h3 className="text-2xl font-bold text-white mb-8 text-center">다른 객실 보기</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {rooms.filter((r) => r.id !== room.id).map((otherRoom) => (
-                <Link
-                  key={otherRoom.id}
-                  href={`/room/${otherRoom.id}`}
-                  className="group"
+        {/* 썸네일 */}
+        <div className="container-x -mt-10 relative">
+          <ul className="snap-row rounded-lg border border-border bg-card p-2 shadow-md">
+            {room.images.map((img, i) => (
+              <li key={img.src}>
+                <button
+                  type="button"
+                  aria-label={`${i + 1}번 사진`}
+                  onClick={() => setCurrent(i)}
+                  onDoubleClick={() => setLightbox(true)}
+                  className={cn("block overflow-hidden rounded-md ring-2 ring-offset-2 ring-offset-card transition", i === current ? "ring-primary" : "ring-transparent opacity-70 hover:opacity-100")}
                 >
-                  <div className="aspect-[4/3] rounded-xl overflow-hidden relative">
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                      style={{ backgroundImage: `url(${otherRoom.mainImage})` }}
-                    />
-                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all" />
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-white font-bold text-sm">{otherRoom.name}</p>
-                      <p className="text-white/60 text-xs">{otherRoom.nameEn}</p>
-                    </div>
-                  </div>
-                </Link>
+                  <img src={img.src} alt={img.alt} className="h-16 w-24 object-cover sm:h-20 sm:w-32" loading="lazy" decoding="async" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" onClick={() => setLightbox(true)} className="mt-2 text-sm text-muted-foreground hover:text-foreground">
+            사진 크게 보기 →
+          </button>
+        </div>
+
+        {/* 본문 */}
+        <section className="container-x section-y grid gap-10 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-7">
+            <Reveal>
+              <p className="eyebrow text-accent-strong">ABOUT THE ROOM</p>
+              <h2 className="mt-3 font-serif text-fluid-2xl font-medium">{roomCommon.invite}</h2>
+              <p className="mt-5 text-fluid-base leading-relaxed text-foreground/85">{room.description}</p>
+              <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
+                {roomCommon.intro[0]} {roomCommon.intro[1]}
+              </p>
+            </Reveal>
+
+            <Reveal delay={0.05} className="mt-10">
+              <p className="text-[15px] font-semibold">구비 시설</p>
+              <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {roomCommon.amenities.map((a, i) => {
+                  const I = amenityIcons[i % amenityIcons.length];
+                  return (
+                    <li key={a} className="rounded-lg border border-border bg-card p-4">
+                      <I className="h-5 w-5 text-primary" />
+                      <p className="mt-3 text-sm font-semibold leading-snug">{a}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Reveal>
+
+            <Reveal delay={0.1} className="mt-10 grid gap-3 sm:grid-cols-2">
+              {room.images.slice(1, 5).map((img, i) => (
+                <button key={img.src} type="button" onClick={() => { setCurrent(i + 1); setLightbox(true); }} className="group overflow-hidden rounded-lg">
+                  <Photo src={img.src} alt={img.alt} ratio="aspect-[4/3]" imgClassName="transition-transform duration-700 group-hover:scale-[1.04]" />
+                </button>
               ))}
+            </Reveal>
+
+            <Reveal delay={0.1} className="mt-10 rounded-lg border border-warning/40 bg-warning/8 p-5">
+              <p className="flex items-center gap-2 text-[15px] font-semibold">
+                <AlertCircle className="h-4 w-4 text-warning" /> 이용 시 유의사항
+              </p>
+              <ul className="mt-3 space-y-1.5 text-[15px] leading-relaxed text-foreground/85">
+                <li>· {priceInfo.standardNote}</li>
+                {priceInfo.bbqNotes.map((n) => (
+                  <li key={n}>· {n}</li>
+                ))}
+                {priceInfo.cautions.map((c) => (
+                  <li key={c}>· {c}</li>
+                ))}
+              </ul>
+            </Reveal>
+          </div>
+
+          {/* 요금 사이드바 */}
+          <aside className="lg:col-span-5">
+            <Reveal delay={0.05} className="rounded-lg border border-border bg-card p-6 shadow-sm lg:sticky lg:top-24">
+              <div className="flex items-baseline justify-between">
+                <p className="text-[15px] font-semibold">객실 요금</p>
+                <p className="text-xs text-muted-foreground">1박 · 기준 {room.capacity.standard}인</p>
+              </div>
+              <ul className="mt-4 divide-y divide-border">
+                {priceRows.map((r) => (
+                  <li key={r.label} className="flex items-center justify-between py-3">
+                    <span className={cn("text-[15px]", r.strong ? "font-semibold" : "text-muted-foreground")}>{r.label}</span>
+                    <span className={cn("tnum text-lg", r.strong ? "font-bold" : "font-semibold")}>{formatPrice(r.value)}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4 space-y-1 text-xs text-muted-foreground">
+                <p>{priceInfo.rateRule}</p>
+                <p>{priceInfo.seasonNote} 인원 추가 1인 {formatPrice(priceInfo.extraPerson)} ({priceInfo.freeAge} 무료)</p>
+                <p>바베큐 숯+망 {priceInfo.bbqPrices.map((b) => `${b.persons} ${formatPrice(b.price)}`).join(" · ")}</p>
+              </div>
+              <div className="mt-6 grid gap-2">
+                <ButtonLink href={pensionInfo.yapenBookingUrl} external size="lg">
+                  <Calendar className="h-4 w-4" /> 실시간 예약
+                </ButtonLink>
+                <ButtonLink href={pensionInfo.naverBookingUrl} external variant="secondary" size="lg">
+                  네이버 예약
+                </ButtonLink>
+                <ButtonLink href={`tel:${pensionInfo.phone}`} variant="ghost" size="lg">
+                  <Phone className="h-4 w-4" /> {pensionInfo.phone}
+                </ButtonLink>
+              </div>
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                입실 {pensionInfo.checkIn} (연휴·성수기 {pensionInfo.checkInPeak}) · 퇴실 {pensionInfo.checkOut}
+              </p>
+            </Reveal>
+          </aside>
+        </section>
+
+        {/* 이전/다음 + 다른 객실 */}
+        <section className="border-t border-border bg-secondary/60">
+          <div className="container-x py-12 lg:py-16">
+            <div className="flex items-center justify-between gap-4">
+              <Link href={`/room/${prev.id}`} className="group inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
+                <ChevronLeft className="h-4 w-4" /> {prev.name}
+              </Link>
+              <p className="eyebrow text-[11px] text-muted-foreground">OTHER ROOMS</p>
+              <Link href={`/room/${next.id}`} className="group inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
+                {next.name} <ChevronRight className="h-4 w-4" />
+              </Link>
             </div>
+            <ul className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {others.map((r) => (
+                <li key={r.id}>
+                  <Link href={`/room/${r.id}`} className="group block overflow-hidden rounded-lg border border-border bg-card">
+                    <Photo src={r.mainImage} alt={r.name} ratio="aspect-[4/3]" imgClassName="transition-transform duration-700 group-hover:scale-[1.04]" />
+                    <div className="p-4">
+                      <p className="font-serif text-lg font-semibold">{r.name}</p>
+                      <p className="tnum mt-1 text-sm text-muted-foreground">
+                        {r.size} · 주중 {formatPrice(r.prices.weekday)}~
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
       </main>
-
-      {/* Fullscreen Modal */}
-      <AnimatePresence>
-        {isFullscreen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
-            onClick={() => setIsFullscreen(false)}
-          >
-            {/* Close Button */}
-            <button
-              onClick={() => setIsFullscreen(false)}
-              className="absolute top-4 right-4 z-10 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-            >
-              <X className="w-8 h-8" />
-            </button>
-
-            {/* Image */}
-            <motion.img
-              key={currentImageIndex}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              src={room.images[currentImageIndex].src}
-              alt={room.images[currentImageIndex].alt}
-              className="max-w-full max-h-full object-contain"
-              onClick={(e) => e.stopPropagation()}
-            />
-
-            {/* Navigation */}
-            <button
-              onClick={(e) => { e.stopPropagation(); prevImage(); }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
-            >
-              <ChevronLeft className="w-10 h-10" />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); nextImage(); }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
-            >
-              <ChevronRight className="w-10 h-10" />
-            </button>
-
-            {/* Counter */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 bg-white/10 backdrop-blur-sm rounded-full text-white text-xl">
-              {currentImageIndex + 1} / {room.images.length}
-            </div>
-
-            {/* Thumbnails */}
-            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-2 max-w-[80vw] overflow-x-auto p-2">
-              {room.images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(idx); }}
-                  className={`flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                    idx === currentImageIndex
-                      ? "border-white scale-110"
-                      : "border-transparent opacity-50 hover:opacity-100"
-                  }`}
-                >
-                  <div
-                    className="w-full h-full bg-cover bg-center"
-                    style={{ backgroundImage: `url(${img.src})` }}
-                  />
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      <Footer />
+      <FloatingCTA />
+      <AnimatePresence>{lightbox && <Lightbox room={room} index={current} onClose={closeLightbox} onMove={move} />}</AnimatePresence>
+    </>
   );
 }

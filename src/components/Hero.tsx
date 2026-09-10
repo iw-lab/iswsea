@@ -1,508 +1,152 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar, Eye, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown, Pause, Play } from "lucide-react";
 import { heroImages, pensionInfo } from "@/data/pension";
+import { ButtonLink } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
-// Ken Burns 효과 - 각 슬라이드마다 다른 방향으로 줌/패닝
-const kenBurnsVariants = [
-  { scale: [1, 1.15], x: ["0%", "3%"], y: ["0%", "2%"] },      // 우하단으로 줌인
-  { scale: [1.1, 1], x: ["2%", "-2%"], y: ["0%", "0%"] },      // 좌우 패닝 + 줌아웃
-  { scale: [1, 1.12], x: ["0%", "-3%"], y: ["0%", "-2%"] },    // 좌상단으로 줌인
-  { scale: [1.12, 1.02], x: ["-2%", "2%"], y: ["2%", "-1%"] }, // 대각선 패닝
-  { scale: [1, 1.18], x: ["0%", "0%"], y: ["0%", "3%"] },      // 세로 줌인
-  { scale: [1.15, 1], x: ["3%", "-2%"], y: ["-2%", "1%"] },    // 줌아웃 + 패닝
-  { scale: [1, 1.1], x: ["-2%", "2%"], y: ["0%", "0%"] },      // 좌우 패닝
-  { scale: [1.08, 1.15], x: ["0%", "-2%"], y: ["1%", "-2%"] }, // 느린 줌인
-];
+const INTERVAL = 6500;
 
 export default function Hero() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const [direction, setDirection] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [index, setIndex] = useState(0);
+  // 자동 전환 콘텐츠는 사용자가 멈출 수 있어야 한다(WCAG 2.2.2)
+  const [paused, setPaused] = useState(false);
 
-  // 실제 뷰포트 높이 계산 (모바일 브라우저 주소창 고려)
-  // 초기값만 저장하고, 스크롤로 인한 주소창 변화에는 반응하지 않음
+  // 탭이 가려지면(백그라운드) 슬라이드 진행을 멈춘다 — rAF 가 멈춘 상태에서 exit 애니메이션이
+  // 끝나지 않아 AnimatePresence 에 슬라이드가 누적되는 것을 막는다.
   useEffect(() => {
-    const isMobileDevice = window.innerWidth < 640;
-    setIsMobile(isMobileDevice);
-
-    // 모바일에서는 초기 높이만 저장 (스크롤 시 주소창 변화로 인한 여백 문제 방지)
-    if (viewportHeight === null) {
-      setViewportHeight(window.innerHeight);
-    }
-
-    // orientationchange에서만 높이 업데이트 (화면 회전 시)
-    const handleOrientationChange = () => {
-      setTimeout(() => {
-        setViewportHeight(window.innerHeight);
-        setIsMobile(window.innerWidth < 640);
-      }, 100);
+    if (paused) return;
+    const tick = () => {
+      if (document.visibilityState === "hidden") return;
+      setIndex((i) => (i + 1) % heroImages.length);
     };
+    const id = window.setInterval(tick, INTERVAL);
+    return () => window.clearInterval(id);
+  }, [paused]);
 
-    // PC에서는 resize도 처리
-    const handleResize = () => {
-      if (window.innerWidth >= 640) {
-        setViewportHeight(window.innerHeight);
-      }
-      setIsMobile(window.innerWidth < 640);
-    };
-
-    window.addEventListener('resize', handleResize, { passive: true });
-    window.addEventListener('orientationchange', handleOrientationChange, { passive: true });
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleOrientationChange);
-    };
-  }, [viewportHeight]);
-
-
-  useEffect(() => {
-    if (!isAutoPlaying) return;
-
-    const interval = setInterval(() => {
-      setDirection(1);
-      setCurrentSlide((prev) => (prev + 1) % heroImages.length);
-    }, 7000); // 7초로 늘려서 Ken Burns 효과를 더 잘 볼 수 있게
-
-    return () => clearInterval(interval);
-  }, [isAutoPlaying]);
-
-  const goToSlide = useCallback((index: number) => {
-    setDirection(index > currentSlide ? 1 : -1);
-    setCurrentSlide(index);
-    setIsAutoPlaying(false);
-    setTimeout(() => setIsAutoPlaying(true), 10000);
-  }, [currentSlide]);
-
-  const prevSlide = () => {
-    setDirection(-1);
-    goToSlide((currentSlide - 1 + heroImages.length) % heroImages.length);
-  };
-
-  const nextSlide = () => {
-    setDirection(1);
-    goToSlide((currentSlide + 1) % heroImages.length);
-  };
-
-  const currentImage = heroImages[currentSlide];
-  const currentKenBurns = kenBurnsVariants[currentSlide % kenBurnsVariants.length];
-
-  // 히어로 섹션은 항상 뷰포트 높이에 맞춤 (첫 화면을 넘어가지 않음)
-  const sectionHeight = viewportHeight ? `${viewportHeight}px` : '100dvh';
+  const slide = heroImages[index];
 
   return (
-    <section
-      className="relative w-full"
-      style={{ height: sectionHeight, minHeight: sectionHeight, maxHeight: sectionHeight, overflow: 'hidden' }}
-    >
-      {/* PC: 배경 이미지 - 전체 화면 */}
-      <AnimatePresence initial={true} mode="wait">
+    <section className="relative h-[100svh] min-h-[560px] w-full overflow-hidden bg-scrim text-on-image" aria-label="메인 비주얼">
+      {/* 첫 장은 즉시 렌더 — LCP */}
+      <AnimatePresence initial={false}>
         <motion.div
-          key={currentSlide}
+          key={slide.src}
+          className="absolute inset-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1.2, ease: "easeInOut" }}
-          className="absolute inset-0 hidden sm:block"
+          transition={{ duration: 1.4, ease: "easeInOut" }}
         >
-          <motion.img
-            key={`img-${currentSlide}`}
-            src={currentImage.src}
-            alt={currentImage.alt}
-            className="absolute inset-0 w-full h-full object-cover"
-            initial={{
-              scale: currentKenBurns.scale[0],
-              x: currentKenBurns.x[0],
-              y: currentKenBurns.y[0]
-            }}
-            animate={{
-              scale: currentKenBurns.scale[1],
-              x: currentKenBurns.x[1],
-              y: currentKenBurns.y[1]
-            }}
-            transition={{
-              duration: 7,
-              ease: "linear"
-            }}
+          <img
+            src={slide.src}
+            alt={slide.alt}
+            className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
+            loading={index === 0 ? "eager" : "lazy"}
+            decoding="async"
           />
-          {/* Dark Overlay - PC만 */}
-          <div className="absolute inset-0 bg-black/35" />
         </motion.div>
       </AnimatePresence>
+      <div className="scrim-b absolute inset-0" />
+      <div className="scrim-t absolute inset-x-0 top-0 h-40" />
 
-      {/* Overlay Gradients - PC만 */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60 z-[1] hidden sm:block" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/30 z-[1] hidden sm:block" />
-
-      {/* 모바일 레이아웃 */}
-      {isMobile && viewportHeight && (
-        <div
-          className="absolute top-0 left-0 right-0 z-10 flex flex-col sm:hidden bg-[#0F1419]"
-          style={{ height: `${viewportHeight}px` }}
+      <div className="container-x relative flex h-full flex-col justify-end pb-[max(5.5rem,10vh)]">
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.2 }}
+          className="eyebrow text-on-image-muted"
         >
-          {/* 헤더 영역 여백 */}
-          <div style={{ height: '92px', flexShrink: 0 }} />
+          {pensionInfo.nameEn} · Taean, Garorim Bay
+        </motion.p>
+        <motion.h1
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.35 }}
+          className="mt-4 max-w-4xl font-serif text-fluid-5xl font-medium leading-[1.12] text-balance"
+        >
+          숲을 지나면,
+          <br />
+          바다가 열립니다
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+          className="mt-5 max-w-xl text-fluid-lg text-on-image-muted"
+        >
+          태안 가로림만 언덕 위, 전 객실 오션뷰 목조 펜션. 일출과 월출을 객실에서 만나고, 개별 월풀형 욕조와 실내 바베큐 테라스에서 하루를 마무리하세요.
+        </motion.p>
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.65 }}
+          className="mt-8 flex flex-wrap gap-3"
+        >
+          <ButtonLink href={pensionInfo.yapenBookingUrl} external size="lg" className="bg-on-image text-scrim hover:bg-on-image/90">
+            실시간 예약
+          </ButtonLink>
+          <ButtonLink href="#rooms" variant="onImage" size="lg">
+            객실 둘러보기
+          </ButtonLink>
+        </motion.div>
 
-          {/* 사진 영역 - 직각 모서리 */}
-          <div className="relative overflow-hidden" style={{ height: '28%', flexShrink: 0 }}>
-            <AnimatePresence initial={true} mode="wait">
-              <motion.div
-                key={`mobile-${currentSlide}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 1.2, ease: "easeInOut" }}
-                className="absolute inset-0 overflow-hidden"
-              >
-                <motion.img
-                  key={`mobile-img-${currentSlide}`}
-                  src={currentImage.src}
-                  alt={currentImage.alt}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  initial={{
-                    scale: currentKenBurns.scale[0],
-                    x: currentKenBurns.x[0],
-                    y: currentKenBurns.y[0]
-                  }}
-                  animate={{
-                    scale: currentKenBurns.scale[1],
-                    x: currentKenBurns.x[1],
-                    y: currentKenBurns.y[1]
-                  }}
-                  transition={{
-                    duration: 7,
-                    ease: "linear"
-                  }}
-                />
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* 사진과 Progress Bar 사이 여백 */}
-          <div style={{ height: '16px', flexShrink: 0 }} />
-
-          {/* Progress Bar */}
-          <div style={{ flexShrink: 0 }} className="px-4">
-            <div className="flex items-center justify-center gap-1.5">
-              {heroImages.map((_, index) => (
+        {/* 슬라이드 캡션 + 인디케이터 */}
+        <div className="mt-10 flex items-end justify-between gap-6 border-t border-on-image/20 pt-5">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={slide.src}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.4 }}
+              className="min-w-0"
+            >
+              <p className="truncate text-sm font-semibold">{slide.title}</p>
+              <p className="truncate text-xs text-on-image-muted">{slide.subtitle}</p>
+            </motion.div>
+          </AnimatePresence>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPaused((p) => !p)}
+              aria-pressed={paused}
+              aria-label={paused ? "슬라이드 재생" : "슬라이드 일시정지"}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-on-image/35 text-on-image transition-colors hover:bg-on-image/15"
+            >
+              {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+            </button>
+            <span className="tnum font-display text-sm tracking-widest text-on-image-muted">
+              {String(index + 1).padStart(2, "0")} / {String(heroImages.length).padStart(2, "0")}
+            </span>
+            <div className="hidden gap-1.5 sm:flex" role="group" aria-label="슬라이드 선택">
+              {heroImages.map((img, i) => (
                 <button
-                  key={index}
-                  onClick={() => goToSlide(index)}
-                  className="group relative"
-                  aria-label={`슬라이드 ${index + 1}`}
-                >
-                  <div
-                    className={`h-[3px] rounded-full transition-all duration-500 ${
-                      index === currentSlide
-                        ? "w-5 bg-white"
-                        : "w-2 bg-white/40"
-                    }`}
-                  />
-                  {index === currentSlide && (
-                    <motion.div
-                      className="absolute top-0 left-0 h-[3px] bg-white/60 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: "100%" }}
-                      transition={{ duration: 7, ease: "linear" }}
-                      key={`progress-${currentSlide}`}
-                    />
+                  key={img.src}
+                  type="button"
+                  aria-pressed={i === index}
+                  aria-label={`${i + 1}번 슬라이드`}
+                  onClick={() => setIndex(i)}
+                  className={cn(
+                    "h-1 rounded-full transition-all",
+                    i === index ? "w-7 bg-on-image" : "w-3 bg-on-image/40 hover:bg-on-image/70"
                   )}
-                </button>
+                />
               ))}
             </div>
           </div>
-
-          {/* Progress Bar와 텍스트 사이 여백 */}
-          <div style={{ height: '12px', flexShrink: 0 }} />
-
-          {/* 텍스트 영역 */}
-          <div style={{ flexShrink: 0 }} className="px-4">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentSlide}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="text-center"
-              >
-                <h1 className="text-xl font-bold text-white leading-tight tracking-tight">
-                  {currentImage.title}
-                </h1>
-                <p className="text-sm text-white/60 font-light mt-1.5">
-                  {currentImage.subtitle}
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* 텍스트와 버튼 사이 여백 - 더 넓게 */}
-          <div style={{ height: '32px', flexShrink: 0 }} />
-
-          {/* CTA Buttons - 3줄 */}
-          <div style={{ flexShrink: 0 }} className="px-4 flex flex-col gap-3">
-            <a
-              href={pensionInfo.naverBookingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 h-[44px] bg-[#03C75A] text-white font-semibold text-sm rounded-xl active:scale-[0.97] transition-transform"
-            >
-              <Calendar className="w-4 h-4" />
-              <span>네이버 예약</span>
-            </a>
-            <a
-              href={pensionInfo.yapenBookingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 h-[44px] bg-[#FF6B35] text-white font-semibold text-sm rounded-xl active:scale-[0.97] transition-transform"
-            >
-              <Clock className="w-4 h-4" />
-              <span>실시간 예약</span>
-            </a>
-            <a
-              href="#rooms"
-              className="w-full flex items-center justify-center gap-2 h-[44px] bg-white/10 border border-white/30 text-white font-semibold text-sm rounded-xl active:scale-[0.97] transition-transform"
-            >
-              <Eye className="w-4 h-4" />
-              <span>객실 보기</span>
-            </a>
-          </div>
-
-          {/* 남은 공간 - Scroll을 맨 아래에 배치 */}
-          <div className="flex-1" />
-
-          {/* 하단: Scroll Indicator - 맨 아래 고정 */}
-          <div style={{ height: '50px', flexShrink: 0 }} className="flex flex-col items-center justify-center pb-3">
-            <a
-              href="#about"
-              className="flex flex-col items-center gap-0.5 text-white/60"
-            >
-              <motion.span
-                className="text-[10px] tracking-[0.2em] uppercase font-light"
-                animate={{ opacity: [0.4, 1, 0.4] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              >
-                Scroll
-              </motion.span>
-              <motion.div
-                animate={{ y: [0, 3, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              >
-                <ChevronDown className="w-4 h-4" />
-              </motion.div>
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* PC 레이아웃: 기존 유지 */}
-      <div className="relative z-10 h-full hidden sm:flex flex-col justify-center items-center text-center px-6">
-        <div className="w-full max-w-none px-4 md:px-8 lg:px-16">
-          {/* Logo Mark - PC만 */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex items-center justify-center gap-3 mb-8"
-          >
-            <motion.div
-              className="w-16 h-[1px] bg-white/60"
-              initial={{ width: 0 }}
-              animate={{ width: 64 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-            />
-            <span className="text-white/90 text-sm tracking-[0.4em] font-light uppercase">
-              {pensionInfo.nameEn}
-            </span>
-            <motion.div
-              className="w-16 h-[1px] bg-white/60"
-              initial={{ width: 0 }}
-              animate={{ width: 64 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-            />
-          </motion.div>
-
-          {/* Dynamic Title - 슬라이드별 변경 with stagger effect */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentSlide}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <motion.h1
-                className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4 leading-tight tracking-tight"
-                initial={{ opacity: 0, y: 40, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.7, delay: 0.1 }}
-              >
-                <span className="drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
-                  {currentImage.title}
-                </span>
-              </motion.h1>
-              <motion.p
-                className="text-2xl md:text-3xl text-white/90 font-light drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.3 }}
-              >
-                {currentImage.subtitle}
-              </motion.p>
-            </motion.div>
-          </AnimatePresence>
-
-          {/* CTA Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-            className="flex flex-row items-center justify-center gap-4 md:gap-5 lg:gap-6"
-            style={{ marginTop: '40px' }}
-          >
-            <motion.a
-              href={pensionInfo.naverBookingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center justify-center gap-3 w-[200px] lg:w-[220px] h-[56px] lg:h-[60px] bg-[#03C75A] text-white font-semibold text-base lg:text-lg rounded-full transition-all hover:bg-[#02b351]"
-              whileHover={{ scale: 1.05, boxShadow: "0 8px 30px rgba(3,199,90,0.4)" }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Calendar className="w-5 h-5" />
-              <span>네이버 예약</span>
-            </motion.a>
-            <motion.a
-              href={pensionInfo.yapenBookingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center justify-center gap-3 w-[200px] lg:w-[220px] h-[56px] lg:h-[60px] bg-[#FF6B35] text-white font-semibold text-base lg:text-lg rounded-full transition-all hover:bg-[#E55A2B]"
-              whileHover={{ scale: 1.05, boxShadow: "0 8px 30px rgba(255,107,53,0.4)" }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Clock className="w-5 h-5" />
-              <span>실시간 예약</span>
-            </motion.a>
-            <motion.a
-              href="#rooms"
-              className="group flex items-center justify-center w-[180px] lg:w-[200px] h-[56px] lg:h-[60px] bg-white/10 backdrop-blur-md border-2 border-white/60 text-white font-semibold text-base lg:text-lg rounded-full transition-all"
-              whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.2)" }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Eye className="w-5 h-5 mr-2" />
-              <span>객실 보기</span>
-            </motion.a>
-          </motion.div>
         </div>
       </div>
 
-      {/* Slide Navigation - 좌우 화살표 (모바일에서 숨김) */}
-      <motion.button
-        onClick={prevSlide}
-        className="hidden sm:flex absolute left-2 sm:left-4 lg:left-6 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-3 lg:p-4 rounded-full bg-white/10 hover:bg-white/30 text-white backdrop-blur-md transition-all border border-white/20 items-center justify-center"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        aria-label="이전 슬라이드"
+      <a
+        href="#about"
+        aria-label="아래로 스크롤"
+        className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 text-on-image-muted md:block"
       >
-        <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-      </motion.button>
-
-      <motion.button
-        onClick={nextSlide}
-        className="hidden sm:flex absolute right-2 sm:right-4 lg:right-6 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-3 lg:p-4 rounded-full bg-white/10 hover:bg-white/30 text-white backdrop-blur-md transition-all border border-white/20 items-center justify-center"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        aria-label="다음 슬라이드"
-      >
-        <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-      </motion.button>
-
-      {/* Progress Bar - PC용 하단 프로그레스 */}
-      <div className="absolute bottom-20 lg:bottom-28 left-1/2 -translate-x-1/2 z-20 hidden sm:flex items-center gap-3">
-        {heroImages.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className="group relative"
-            aria-label={`슬라이드 ${index + 1}`}
-          >
-            <div
-              className={`h-1 rounded-full transition-all duration-500 ${
-                index === currentSlide
-                  ? "w-12 bg-white"
-                  : "w-6 bg-white/40 group-hover:bg-white/70"
-              }`}
-            />
-            {index === currentSlide && (
-              <motion.div
-                className="absolute top-0 left-0 h-1 bg-white/60 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: "100%" }}
-                transition={{ duration: 7, ease: "linear" }}
-                key={`progress-${currentSlide}`}
-              />
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Slide Counter - 우측 하단 */}
-      <div className="absolute bottom-28 right-8 z-20 text-white font-light hidden lg:flex items-baseline gap-1">
-        <motion.span
-          className="text-3xl font-medium"
-          key={currentSlide}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {String(currentSlide + 1).padStart(2, "0")}
-        </motion.span>
-        <span className="text-white/50 mx-1">/</span>
-        <span className="text-white/70 text-lg">{String(heroImages.length).padStart(2, "0")}</span>
-      </div>
-
-      {/* Scroll Indicator - PC용 */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.5 }}
-        className="absolute bottom-6 lg:bottom-8 left-1/2 -translate-x-1/2 z-20 hidden sm:block"
-      >
-        <motion.a
-          href="#about"
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="flex flex-col items-center gap-2 text-white/80 hover:text-white transition-colors"
-        >
-          <span className="text-xs tracking-[0.2em] uppercase font-light">Scroll</span>
-          <ChevronDown className="w-5 h-5" />
-        </motion.a>
-      </motion.div>
-
-      {/* Side Info - 좌측 세로 텍스트 */}
-      <div className="absolute left-8 top-1/2 -translate-y-1/2 z-20 hidden xl:block">
-        <div className="flex flex-col items-center gap-4">
-          <motion.div
-            className="w-[1px] h-16 bg-white/30"
-            initial={{ height: 0 }}
-            animate={{ height: 64 }}
-            transition={{ duration: 0.8, delay: 0.5 }}
-          />
-          <span className="text-white/70 text-xs tracking-[0.3em] uppercase [writing-mode:vertical-lr]">
-            태안 안면도
-          </span>
-          <motion.div
-            className="w-[1px] h-16 bg-white/30"
-            initial={{ height: 0 }}
-            animate={{ height: 64 }}
-            transition={{ duration: 0.8, delay: 0.7 }}
-          />
-        </div>
-      </div>
+        <ChevronDown className="animate-scroll-cue h-6 w-6" />
+      </a>
     </section>
   );
 }

@@ -13,35 +13,25 @@ import FloatingCTA from "@/components/FloatingCTA";
 import EventPopup from "@/components/EventPopup";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
-// 섹션 간격 컴포넌트 (모바일 + PC)
-const SectionSpacer = ({ className = "" }: { className?: string }) => (
-  <div className={`h-8 sm:h-12 lg:h-20 ${className}`} />
-);
-
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <>
       <Header />
-      <Hero />
-      <About />
-      <SectionSpacer className="bg-[var(--background-alt)]" />
-      <Rooms />
-      <SectionSpacer className="bg-[#0F1419]" />
-      <Special />
-      <SectionSpacer className="bg-[var(--background-alt)]" />
-      <Tour />
-      <SectionSpacer className="bg-[var(--background)]" />
-      <Location />
-      <SectionSpacer className="bg-[#0F1419]" />
-      <Guide />
-      <SectionSpacer className="bg-[#0F1419]" />
-      <Reservation />
-      <SectionSpacer className="bg-[#0F1419]" />
-      <Notice />
+      <main>
+        <Hero />
+        <About />
+        <Rooms />
+        <Special />
+        <Tour />
+        <Location />
+        <Guide />
+        <Reservation />
+        <Notice />
+      </main>
       <Footer />
       <FloatingCTA />
       <EventPopup />
       <PWAInstallPrompt />
-    </main>
+    </>
   );
 }

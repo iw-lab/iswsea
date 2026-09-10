@@ -1,211 +1,98 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Download, X, RefreshCw, Smartphone } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Download, X } from "lucide-react";
+
+const DISMISS_KEY = "woodinsea-pwa-dismissed-until";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const LAST_UPDATE_VERSION_KEY = "woodinsea-last-update-version";
-const APP_VERSION = "1.0.0";
-
+/**
+ * 서비스워커 등록 + 설치 배너(조용한 버전).
+ * - 첫 방문 30초 뒤 1회만, 닫으면 14일 숨김
+ * - "Update Available" 토스트는 제거(첫 화면 가림 원인)
+ */
 export default function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    setIsIOS(isIOSDevice);
-
-    const isInStandaloneMode =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as typeof window.navigator & { standalone?: boolean })
-        .standalone === true;
-    setIsStandalone(isInStandaloneMode);
-
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-
-      if (!isInStandaloneMode) {
-        setTimeout(() => setShowInstallPrompt(true), 3000);
-      }
-    };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").then((registration) => {
-        registration.addEventListener("updatefound", () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener("statechange", () => {
-              if (
-                newWorker.state === "installed" &&
-                navigator.serviceWorker.controller
-              ) {
-                const lastVersion = localStorage.getItem(
-                  LAST_UPDATE_VERSION_KEY
-                );
-                if (lastVersion !== APP_VERSION) {
-                  setShowUpdatePrompt(true);
-                }
-              }
-            });
-          }
-        });
-      });
-
-      navigator.serviceWorker.addEventListener("message", (event) => {
-        if (event.data && event.data.type === "SW_UPDATED") {
-          const lastVersion = localStorage.getItem(LAST_UPDATE_VERSION_KEY);
-          if (lastVersion !== event.data.version) {
-            setShowUpdatePrompt(true);
-          }
-        }
-      });
+    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
-
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      // 데스크톱에는 "홈 화면에 추가" 배너를 띄우지 않는다(첫 화면 가림 방지)
+      if (!window.matchMedia("(max-width: 767px)").matches) return;
+      try {
+        if (Date.now() < Number(localStorage.getItem(DISMISS_KEY) ?? 0)) return;
+      } catch {
+        /* noop */
+      }
+      setDeferred(e as BeforeInstallPromptEvent);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setShow(true), 30000);
+    };
+    let timer = 0;
+    window.addEventListener("beforeinstallprompt", onPrompt);
     return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt
-      );
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.clearTimeout(timer);
     };
   }, []);
 
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-
-    if (outcome === "accepted") {
-      setDeferredPrompt(null);
+  const dismiss = () => {
+    setShow(false);
+    try {
+      localStorage.setItem(DISMISS_KEY, String(Date.now() + 14 * 24 * 60 * 60 * 1000));
+    } catch {
+      /* noop */
     }
-    setShowInstallPrompt(false);
   };
 
-  const handleUpdateClick = () => {
-    localStorage.setItem(LAST_UPDATE_VERSION_KEY, APP_VERSION);
-    setShowUpdatePrompt(false);
-    window.location.reload();
+  const install = async () => {
+    if (!deferred) return;
+    await deferred.prompt();
+    await deferred.userChoice;
+    setDeferred(null);
+    setShow(false);
   };
-
-  const dismissUpdate = () => {
-    setShowUpdatePrompt(false);
-  };
-
-  const dismissInstall = () => {
-    setShowInstallPrompt(false);
-  };
-
-  const shouldShowInstall =
-    showInstallPrompt && !isStandalone && (deferredPrompt || isIOS);
 
   return (
-    <>
-      <AnimatePresence>
-        {shouldShowInstall && (
-          <motion.div
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            transition={{ type: "spring", damping: 25 }}
-            className="fixed bottom-4 left-4 right-4 z-50 sm:left-auto sm:right-4 sm:max-w-sm"
-          >
-            <div className="bg-[#1a2332] rounded-2xl shadow-2xl border border-[#2a3a4a] p-4 backdrop-blur-lg">
-              <button
-                onClick={dismissInstall}
-                className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-white/10 transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
-
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#4A9F6D] to-[#6BBF8D] flex items-center justify-center flex-shrink-0">
-                  <Smartphone className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1 pr-6">
-                  <h3 className="text-white font-bold text-base mb-1">
-                    Install App
-                  </h3>
-                  <p className="text-gray-400 text-sm mb-3">
-                    Add to home screen for quick access
-                  </p>
-
-                  {isIOS ? (
-                    <div className="text-xs text-gray-500">
-                      <span className="text-[#4A9F6D]">Safari</span>{" "}
-                      <span className="inline-flex items-center gap-1 bg-gray-700 px-1.5 py-0.5 rounded">
-                        Share
-                      </span>{" "}
-                      then Add to Home Screen
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleInstallClick}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#4A9F6D] hover:bg-[#3d8a5c] text-white rounded-lg font-medium text-sm transition-colors"
-                    >
-                      <Download className="w-4 h-4" />
-                      Install
-                    </button>
-                  )}
-                </div>
+    <AnimatePresence>
+      {show && deferred && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
+          className="fixed bottom-20 right-4 z-[var(--z-toast)] w-[calc(100%-2rem)] max-w-sm rounded-lg border border-border bg-card p-4 shadow-lg sm:bottom-6"
+        >
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Download className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-semibold">홈 화면에 추가</p>
+              <p className="text-sm text-muted-foreground">앱처럼 빠르게 예약 정보를 확인하세요.</p>
+              <div className="mt-3 flex gap-2">
+                <button type="button" onClick={install} className="h-9 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+                  설치
+                </button>
+                <button type="button" onClick={dismiss} className="h-9 rounded-md border border-border px-4 text-sm font-semibold">
+                  나중에
+                </button>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showUpdatePrompt && (
-          <motion.div
-            initial={{ opacity: 0, y: -100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -100 }}
-            transition={{ type: "spring", damping: 25 }}
-            className="fixed top-4 left-4 right-4 z-50 sm:left-auto sm:right-4 sm:max-w-sm"
-          >
-            <div className="bg-gradient-to-r from-[#4A9F6D] to-[#6BBF8D] rounded-2xl shadow-2xl p-4">
-              <button
-                onClick={dismissUpdate}
-                className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-white/20 transition-colors"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
-
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <RefreshCw className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1 pr-6">
-                  <h3 className="text-white font-bold text-base mb-1">
-                    Update Available
-                  </h3>
-                  <p className="text-white/80 text-sm mb-3">
-                    A new version is ready
-                  </p>
-                  <button
-                    onClick={handleUpdateClick}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-[#4A9F6D] rounded-lg font-bold text-sm transition-colors hover:bg-white/90"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Update Now
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+            <button type="button" aria-label="닫기" onClick={dismiss} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
