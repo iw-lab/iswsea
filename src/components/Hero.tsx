@@ -38,8 +38,18 @@ export default function Hero() {
         그래서 나가는 장은 흐려지지 않고 «불투명한 채로 아래에 깔려» 있다가,
         새 장이 완전히 덮은 뒤에 꺼진다 → 합성 알파가 항상 1.
       */}
+      {/*
+        isolate = 이 래퍼가 자체 쌓임 맥락을 만든다. 안쪽 레이어의 z-index(0·1·2)가
+        바깥으로 새면 이미지가 scrim·문구·버튼·인디케이터를 전부 덮는다(2026-09-10 실측 사고).
+        래퍼 자신은 DOM 순서상 맨 앞이라 뒤에 오는 것들이 정상적으로 위에 그려진다.
+      */}
+      <div className="absolute inset-0 isolate">
       {heroImages.map((img, i) => {
         const active = i === index;
+        // «다음 장»은 미리 받아 두기만 한 것이라 켄번즈를 걸지 않는다.
+        // 현재·직전에는 계속 걸어 둔다 — 나가는 장에서 클래스를 떼면 scale 1.08 → 1 로
+        // 그 자리에서 튄다(그때 그 장은 아직 보이는 레이어다).
+        const preload = !active && i !== prev;
         // 현재·직전·다음 세 장만 DOM 에 둔다. 여덟 장을 한꺼번에 올리면
         // 히어로 이미지 합계 1.1MB 가 첫 화면에서 LCP 와 경쟁한다.
         // «다음»을 미리 올려 두는 건 6.5초 뒤 전환 때 이미 디코딩돼 있게 하기 위해서다.
@@ -65,12 +75,13 @@ export default function Hero() {
               decoding="async"
               className={cn(
                 "absolute inset-0 h-full w-full object-cover",
-                active && "animate-ken-burns"
+                !preload && "animate-ken-burns"
               )}
             />
           </motion.div>
         );
       })}
+      </div>
       <div className="scrim-b absolute inset-0" />
       <div className="scrim-t absolute inset-x-0 top-0 h-40" />
 
