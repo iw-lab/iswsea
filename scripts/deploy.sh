@@ -12,7 +12,7 @@ BRANCH=${1:-main}
 
 # ① 자리표시자 DB id 로 배포하면 /api 가 조용히 죽는다 — 먼저 막는다
 if grep -q 'database_id = "00000000-0000-0000-0000-000000000000"' wrangler.toml; then
-  echo "✗ wrangler.toml 의 database_id 가 자리표시자다. 먼저:  wrangler d1 create woodinsea  → uuid 를 wrangler.toml 에 넣을 것" >&2
+  echo "✗ wrangler.toml 의 database_id 가 자리표시자다. 먼저:  wrangler d1 create woodinsea-db  → uuid 를 wrangler.toml 에 넣을 것" >&2
   exit 2
 fi
 
@@ -30,7 +30,7 @@ fi
 
 # ③ 빌드 → 원격 D1 마이그레이션(멱등) → 배포
 npm run build
-wrangler d1 migrations apply woodinsea --remote
+wrangler d1 migrations apply woodinsea-db --remote
 wrangler pages deploy out --project-name "$PROJECT" --branch "$BRANCH" --commit-dirty=true
 
 # ④ 헬스체크

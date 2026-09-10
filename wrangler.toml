@@ -6,8 +6,7 @@ compatibility_date = "2026-04-22"
 # 관리자 콘텐츠(공지·이벤트·설정) 저장소 — Pages Functions(functions/api/*)에서 env.DB 로 접근
 [[d1_databases]]
 binding = "DB"
-database_name = "woodinsea"
-# 계정 D1 상한(10개) 때문에 아직 원격 DB 를 만들지 못했다. 생성 후 실제 uuid 로 교체할 것:
-#   wrangler d1 create woodinsea → database_id 복사
-database_id = "00000000-0000-0000-0000-000000000000"
+database_name = "woodinsea-db"
+# 2026-09-10 생성. binding=DB 는 코드가 참조하는 이름이라 바꾸지 말 것.
+database_id = "0c6d535c-79a9-40ea-b451-d927d30cbb55"
 migrations_dir = "migrations"
