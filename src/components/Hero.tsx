@@ -32,57 +32,47 @@ export default function Hero() {
   return (
     <section className="relative h-[100svh] min-h-[560px] w-full overflow-hidden bg-scrim text-on-image" aria-label="메인 비주얼">
       {/*
-        전환은 «위에서 덮기»다. 두 장을 동시에 반투명하게 만들면(크로스페이드)
-        합성 알파가 중간에 0.75 까지 떨어져 뒤의 scrim(hsl 160 30% 6%, 거의 검정)이
-        비치고, 그게 매 컷 «반짝임»으로 보인다(2026-09-10 실측).
-        그래서 나가는 장은 흐려지지 않고 «불투명한 채로 아래에 깔려» 있다가,
-        새 장이 완전히 덮은 뒤에 꺼진다 → 합성 알파가 항상 1.
-      */}
-      {/*
-        isolate = 이 래퍼가 자체 쌓임 맥락을 만든다. 안쪽 레이어의 z-index(0·1·2)가
-        바깥으로 새면 이미지가 scrim·문구·버튼·인디케이터를 전부 덮는다(2026-09-10 실측 사고).
-        래퍼 자신은 DOM 순서상 맨 앞이라 뒤에 오는 것들이 정상적으로 위에 그려진다.
+        슬라이드는 «항상 한 장만 보이게» 만든다. 렌더 결과에 opacity 를 직접 박고
+        전환은 브라우저의 CSS transition 에 맡긴다 — 애니메이션 라이브러리도,
+        타이머로 끄는 레이어도, 전환 시점에 붙는 클래스도 없다.
+
+        - 들어오는 장: 0 → 1 (1.2초). 이미 마운트돼 있던 «다음 장»이라 디코딩도 끝나 있다.
+        - 나가는 장: 불투명한 채로 그냥 아래에 남는다. 끄지 않는다.
+          어차피 완전히 덮이고, 다음 전환 때 통째로 언마운트된다.
+        - 그래서 두 장이 동시에 반투명해지는 순간이 «구조적으로» 없다.
+
+        isolate = z-index 가 이 래퍼 밖으로 새지 않게 가둔다(문구·버튼을 덮은 전례).
       */}
       <div className="absolute inset-0 isolate">
-      {heroImages.map((img, i) => {
-        const active = i === index;
-        // «다음 장»은 미리 받아 두기만 한 것이라 켄번즈를 걸지 않는다.
-        // 현재·직전에는 계속 걸어 둔다 — 나가는 장에서 클래스를 떼면 scale 1.08 → 1 로
-        // 그 자리에서 튄다(그때 그 장은 아직 보이는 레이어다).
-        const preload = !active && i !== prev;
-        // 현재·직전·다음 세 장만 DOM 에 둔다. 여덟 장을 한꺼번에 올리면
-        // 히어로 이미지 합계 1.1MB 가 첫 화면에서 LCP 와 경쟁한다.
-        // «다음»을 미리 올려 두는 건 6.5초 뒤 전환 때 이미 디코딩돼 있게 하기 위해서다.
-        if (!active && i !== prev && i !== next) return null;
-        return (
-          <motion.div
-            key={img.src}
-            className="absolute inset-0"
-            style={{ zIndex: active ? 2 : i === prev ? 1 : 0 }}
-            initial={false}
-            animate={{ opacity: active ? 1 : 0 }}
-            transition={
-              active
-                ? { duration: 1.4, ease: "easeInOut" }
-                : { duration: 0, delay: 2.4 } // 덮이고도 1초 더 깔려 있다가 꺼진다
-            }
-          >
-            <img
-              src={img.src}
-              alt={img.alt}
-              loading={i === 0 ? "eager" : "lazy"}
-              fetchPriority={i === 0 ? "high" : "auto"}
-              decoding="async"
-              className={cn(
-                // will-change 는 «미리 받아 두는 장»에도 걸어 둔다 — 켄번즈 클래스가 전환 시점에
-                // 붙으면 승격·재래스터도 그때 일어나기 때문이다. 마운트 때 끝내 놓는다.
-                "absolute inset-0 h-full w-full object-cover will-change-transform",
-                !preload && "animate-ken-burns"
-              )}
-            />
-          </motion.div>
-        );
-      })}
+        {heroImages.map((img, i) => {
+          const active = i === index;
+          const under = i === prev;              // 아래 깔려 있는 직전 장
+          const ready = i === next;              // 미리 받아 두는 다음 장
+          if (!active && !under && !ready) return null;
+          return (
+            <div
+              key={img.src}
+              className="absolute inset-0"
+              style={{
+                zIndex: active ? 2 : under ? 1 : 0,
+                opacity: active || under ? 1 : 0,
+                transition: "opacity 1.2s ease",
+              }}
+            >
+              <img
+                src={img.src}
+                alt={img.alt}
+                loading={i === 0 ? "eager" : "lazy"}
+                fetchPriority={i === 0 ? "high" : "auto"}
+                decoding="async"
+                className={cn(
+                  "absolute inset-0 h-full w-full object-cover",
+                  !ready && "animate-ken-burns"
+                )}
+              />
+            </div>
+          );
+        })}
       </div>
       <div className="scrim-b absolute inset-0" />
       <div className="scrim-t absolute inset-x-0 top-0 h-40" />
