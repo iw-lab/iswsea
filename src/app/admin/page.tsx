@@ -1,770 +1,662 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Lock,
-  LogOut,
-  Bell,
-  Gift,
-  Settings,
-  Plus,
-  Edit2,
-  Trash2,
-  Save,
-  X,
-  Eye,
-  EyeOff,
-  ChevronRight,
-  Home,
-  ToggleLeft,
-  ToggleRight,
-  AlertCircle,
-  CheckCircle,
-} from "lucide-react";
-import { useAdminStore, NoticeItem, EventItem } from "@/stores/adminStore";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import { ArrowLeft, Bell, Check, Eye, EyeOff, Gift, Loader2, LogOut, Pin, Plus, Settings, Trash2 } from "lucide-react";
+import * as api from "@/lib/adminApi";
+import type { EventItem, NoticeItem } from "@/lib/adminApi";
+import { Badge, Button } from "@/components/ui";
+import { ThemeToggle } from "@/components/Header";
+import { cn } from "@/lib/utils";
 
-type TabType = "notices" | "events" | "settings";
+type Tab = "notices" | "events" | "settings";
+const TABS: { key: Tab; label: string; icon: typeof Bell }[] = [
+  { key: "notices", label: "공지사항", icon: Bell },
+  { key: "events", label: "이벤트", icon: Gift },
+  { key: "settings", label: "설정", icon: Settings },
+];
 
-export default function AdminPage() {
-  const {
-    isAuthenticated,
-    login,
-    logout,
-    notices,
-    events,
-    popupEnabled,
-    setPopupEnabled,
-    addNotice,
-    updateNotice,
-    deleteNotice,
-    addEvent,
-    updateEvent,
-    deleteEvent,
-    adminPassword,
-    setAdminPassword,
-  } = useAdminStore();
+const EVENT_COLORS = ["#4f8a8b", "#c8a97e", "#3d6b4f", "#b5533c", "#5a6fa8"];
 
+const emptyNotice = (): Omit<NoticeItem, "id"> => ({ title: "", content: "", date: todayLabel(), important: false, active: true });
+const emptyEvent = (): Omit<EventItem, "id"> => ({ title: "", period: "", description: "", highlight: "", conditions: [], badge: "", color: EVENT_COLORS[0], active: true });
+
+function todayLabel() {
+  const d = new Date();
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : "알 수 없는 오류";
+}
+
+/* ---------- 공용 폼 요소 ---------- */
+const inputCls =
+  "w-full rounded-md border border-input bg-card px-3.5 py-2.5 text-[15px] text-foreground placeholder:text-muted-foreground/70 focus-visible:border-ring";
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-semibold">{label}</span>
+      {children}
+      {hint && <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>}
+    </label>
+  );
+}
+
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="inline-flex items-center gap-2.5 text-sm font-medium"
+    >
+      <span className={cn("relative inline-block h-6 w-11 rounded-full transition-colors", checked ? "bg-primary" : "bg-muted-foreground/30")}>
+        <span className={cn("absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-card shadow-sm transition-transform", checked && "translate-x-5")} />
+      </span>
+      {label}
+    </button>
+  );
+}
+
+function InlineNotice({ children, tone = "info" }: { children: React.ReactNode; tone?: "info" | "error" | "success" }) {
+  return (
+    <p
+      role={tone === "error" ? "alert" : "status"}
+      className={cn(
+        "rounded-md border px-4 py-3 text-sm",
+        tone === "error" && "border-destructive/40 bg-destructive/10 text-destructive",
+        tone === "success" && "border-success/40 bg-success/10 text-success",
+        tone === "info" && "border-border bg-muted text-muted-foreground"
+      )}
+    >
+      {children}
+    </p>
+  );
+}
+
+/** 2단계 삭제 버튼(브라우저 confirm 대신) */
+function DeleteButton({ onConfirm, busy }: { onConfirm: () => void; busy?: boolean }) {
+  const [arm, setArm] = useState(false);
+  useEffect(() => {
+    if (!arm) return;
+    const t = window.setTimeout(() => setArm(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [arm]);
+  return arm ? (
+    <span className="inline-flex items-center gap-1.5">
+      <Button variant="accent" size="md" onClick={onConfirm} disabled={busy} className="h-9 bg-destructive text-destructive-foreground hover:bg-destructive/90">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} 정말 삭제
+      </Button>
+      <Button variant="ghost" size="md" onClick={() => setArm(false)} className="h-9">
+        취소
+      </Button>
+    </span>
+  ) : (
+    <Button variant="ghost" size="md" onClick={() => setArm(true)} className="h-9 text-muted-foreground hover:text-destructive" aria-label="삭제">
+      <Trash2 className="h-4 w-4" /> 삭제
+    </Button>
+  );
+}
+
+/* ---------- 로그인 ---------- */
+function LoginCard({ onSuccess }: { onSuccess: () => void }) {
   const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>("notices");
-  const [editingNotice, setEditingNotice] = useState<NoticeItem | null>(null);
-  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
-  const [isAddingNotice, setIsAddingNotice] = useState(false);
-  const [isAddingEvent, setIsAddingEvent] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [newNotice, setNewNotice] = useState<Omit<NoticeItem, "id">>({
-    title: "",
-    content: "",
-    date: new Date().toISOString().split("T")[0].replace(/-/g, "."),
-    important: false,
-    active: true,
-  });
-
-  const [newEvent, setNewEvent] = useState<Omit<EventItem, "id">>({
-    title: "",
-    period: "",
-    description: "",
-    highlight: "",
-    conditions: [],
-    badge: "",
-    color: "#F5B041",
-    active: true,
-  });
-
-  const handleLogin = (e: React.FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const success = login(password);
-    if (!success) {
-      setLoginError(true);
-      setTimeout(() => setLoginError(false), 2000);
-    }
-    setPassword("");
-  };
-
-  const handleSaveNotice = () => {
-    if (editingNotice) {
-      updateNotice(editingNotice.id, editingNotice);
-      setEditingNotice(null);
-      showSaveMessage("공지사항이 수정되었습니다.");
+    setBusy(true);
+    setError(null);
+    try {
+      await api.login(password);
+      setPassword("");
+      onSuccess();
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleAddNotice = () => {
-    if (newNotice.title && newNotice.content) {
-      addNotice(newNotice);
-      setNewNotice({
-        title: "",
-        content: "",
-        date: new Date().toISOString().split("T")[0].replace(/-/g, "."),
-        important: false,
-        active: true,
+  return (
+    <main className="container-x flex min-h-[100svh] items-center justify-center py-16">
+      <form onSubmit={submit} className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-md">
+        <p className="eyebrow text-muted-foreground">ADMIN</p>
+        <h1 className="mt-2 font-serif text-2xl font-semibold">관리자 로그인</h1>
+        <p className="mt-2 text-sm text-muted-foreground">공지사항·이벤트·팝업을 관리합니다.</p>
+        <div className="mt-6">
+          <Field label="비밀번호">
+            <span className="relative block">
+              <input
+                type={show ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                className={cn(inputCls, "pr-11")}
+              />
+              <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                aria-label={show ? "비밀번호 숨기기" : "비밀번호 보기"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:text-foreground"
+              >
+                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </span>
+          </Field>
+        </div>
+        {error && (
+          <div className="mt-4">
+            <InlineNotice tone="error">{error}</InlineNotice>
+          </div>
+        )}
+        <Button type="submit" size="lg" disabled={busy || !password} className="mt-6 w-full">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} 로그인
+        </Button>
+        <Link href="/" className="mt-5 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> 홈으로
+        </Link>
+      </form>
+    </main>
+  );
+}
+
+/* ---------- 공지 ---------- */
+function NoticeForm({ initial, onSave, onCancel, busy }: { initial: Omit<NoticeItem, "id">; onSave: (v: Omit<NoticeItem, "id">) => void; onCancel: () => void; busy: boolean }) {
+  const [v, setV] = useState(initial);
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(v);
+      }}
+      className="space-y-4 rounded-lg border border-primary/30 bg-card p-5"
+    >
+      <Field label="제목">
+        <input value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} required maxLength={120} className={inputCls} />
+      </Field>
+      <Field label="내용" hint="줄바꿈이 그대로 표시됩니다.">
+        <textarea value={v.content} onChange={(e) => setV({ ...v, content: e.target.value })} rows={8} maxLength={4000} className={cn(inputCls, "leading-relaxed")} />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+        <Field label="날짜">
+          <input value={v.date} onChange={(e) => setV({ ...v, date: e.target.value })} maxLength={40} placeholder="2026.09.10" className={inputCls} />
+        </Field>
+        <Toggle checked={v.important} onChange={(important) => setV({ ...v, important })} label="상단 고정(중요)" />
+        <Toggle checked={v.active} onChange={(active) => setV({ ...v, active })} label="게시" />
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>
+          취소
+        </Button>
+        <Button type="submit" disabled={busy || !v.title.trim()}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} 저장
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function NoticesTab() {
+  const [items, setItems] = useState<NoticeItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set());
+  const loadSeq = useRef(0);
+
+  // 늦게 도착한 옛 목록 응답이 최신 상태를 덮지 않도록 요청 번호로 가드
+  const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
+    try {
+      const res = await api.listNotices();
+      if (seq !== loadSeq.current) return;
+      setItems(res.notices);
+      setError(null);
+    } catch (e) {
+      if (seq === loadSeq.current) setError(errMsg(e));
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // 항목별로 진행 중 작업을 추적한다 — 다른 항목을 눌러도 저장 중인 버튼이 다시 살아나지 않는다
+  const run = async (key: string, fn: () => Promise<unknown>) => {
+    if (busy.has(key)) return false;
+    setBusy((s) => new Set(s).add(key));
+    setError(null);
+    try {
+      await fn();
+      await load();
+      return true;
+    } catch (e) {
+      setError(errMsg(e));
+      return false;
+    } finally {
+      setBusy((s) => {
+        const n = new Set(s);
+        n.delete(key);
+        return n;
       });
-      setIsAddingNotice(false);
-      showSaveMessage("공지사항이 추가되었습니다.");
     }
   };
 
-  const handleSaveEvent = () => {
-    if (editingEvent) {
-      updateEvent(editingEvent.id, editingEvent);
-      setEditingEvent(null);
-      showSaveMessage("이벤트가 수정되었습니다.");
-    }
-  };
-
-  const handleAddEvent = () => {
-    if (newEvent.title && newEvent.description) {
-      addEvent(newEvent);
-      setNewEvent({
-        title: "",
-        period: "",
-        description: "",
-        highlight: "",
-        conditions: [],
-        badge: "",
-        color: "#F5B041",
-        active: true,
-      });
-      setIsAddingEvent(false);
-      showSaveMessage("이벤트가 추가되었습니다.");
-    }
-  };
-
-  const handleChangePassword = () => {
-    if (newPassword.length >= 4) {
-      setAdminPassword(newPassword);
-      setNewPassword("");
-      showSaveMessage("비밀번호가 변경되었습니다.");
-    }
-  };
-
-  const showSaveMessage = (msg: string) => {
-    setSaveMessage(msg);
-    setTimeout(() => setSaveMessage(""), 3000);
-  };
-
-  // Login Screen
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0F1419] via-[#1a2332] to-[#0F1419] flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md"
-        >
-          <div className="bg-[#1a2332] rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-            <div className="p-8">
-              <div className="flex justify-center mb-6">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#4A9F6D] to-[#2d5a3d] flex items-center justify-center">
-                  <Lock className="w-8 h-8 text-white" />
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{items ? `${items.length}건 · 게시 ${items.filter((n) => n.active).length}건` : "불러오는 중…"}</p>
+        <Button onClick={() => setAdding(true)} disabled={adding}>
+          <Plus className="h-4 w-4" /> 새 공지
+        </Button>
+      </div>
+      {error && <InlineNotice tone="error">{error}</InlineNotice>}
+      {adding && (
+        <NoticeForm
+          initial={emptyNotice()}
+          busy={busy.has("new")}
+          onCancel={() => setAdding(false)}
+          onSave={(v) => void run("new", () => api.createNotice(v)).then((ok) => ok && setAdding(false))}
+        />
+      )}
+      <ul className="space-y-3">
+        {items?.map((n) => (
+          <li key={n.id}>
+            {editing === n.id ? (
+              <NoticeForm
+                initial={n}
+                busy={busy.has(n.id)}
+                onCancel={() => setEditing(null)}
+                onSave={(v) => void run(n.id, () => api.updateNotice(n.id, v)).then((ok) => ok && setEditing(null))}
+              />
+            ) : (
+              <div className={cn("rounded-lg border border-border bg-card p-5", !n.active && "opacity-60")}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {n.important && (
+                        <Badge tone="gold">
+                          <Pin className="h-3 w-3" /> 고정
+                        </Badge>
+                      )}
+                      {!n.active && <Badge>비공개</Badge>}
+                      <span className="text-xs text-muted-foreground">{n.date}</span>
+                    </div>
+                    <h3 className="mt-2 font-semibold leading-snug">{n.title}</h3>
+                    <p className="prose-pre mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{n.content}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Button variant="secondary" onClick={() => void run(n.id, () => api.updateNotice(n.id, { active: !n.active }))} disabled={busy.has(n.id)} className="h-9">
+                      {n.active ? "숨기기" : "게시"}
+                    </Button>
+                    <Button variant="secondary" onClick={() => setEditing(n.id)} className="h-9">
+                      수정
+                    </Button>
+                    <DeleteButton busy={busy.has(n.id)} onConfirm={() => void run(n.id, () => api.deleteNotice(n.id))} />
+                  </div>
                 </div>
               </div>
-              <h1 className="text-2xl font-bold text-white text-center mb-2">관리자 로그인</h1>
-              <p className="text-white/60 text-center mb-8">숲속의바다 펜션 관리 시스템</p>
+            )}
+          </li>
+        ))}
+      </ul>
+      {items && items.length === 0 && !adding && <InlineNotice>등록된 공지가 없습니다. 「새 공지」로 추가하세요.</InlineNotice>}
+    </div>
+  );
+}
 
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="관리자 비밀번호"
-                    className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#4A9F6D] transition-all ${
-                      loginError ? "border-red-500 shake" : "border-white/10"
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-
-                <AnimatePresence>
-                  {loginError && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="text-red-400 text-sm flex items-center gap-2"
-                    >
-                      <AlertCircle className="w-4 h-4" />
-                      비밀번호가 올바르지 않습니다.
-                    </motion.p>
-                  )}
-                </AnimatePresence>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-gradient-to-r from-[#4A9F6D] to-[#3D8A5A] text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-[#4A9F6D]/20 transition-all"
-                >
-                  로그인
-                </button>
-              </form>
-            </div>
-
-            <div className="px-8 py-4 bg-black/20 border-t border-white/5">
-              <Link href="/" className="flex items-center justify-center gap-2 text-white/50 hover:text-white/70 transition-colors text-sm">
-                <Home className="w-4 h-4" />
-                홈으로 돌아가기
-              </Link>
-            </div>
-          </div>
-        </motion.div>
-
-        <style jsx>{`
-          @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-          }
-          .shake {
-            animation: shake 0.3s ease-in-out;
-          }
-        `}</style>
+/* ---------- 이벤트 ---------- */
+function EventForm({ initial, onSave, onCancel, busy }: { initial: Omit<EventItem, "id">; onSave: (v: Omit<EventItem, "id">) => void; onCancel: () => void; busy: boolean }) {
+  const [v, setV] = useState(initial);
+  const [cond, setCond] = useState(initial.conditions.join("\n"));
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave({ ...v, conditions: cond.split("\n").map((s) => s.trim()).filter(Boolean) });
+      }}
+      className="space-y-4 rounded-lg border border-primary/30 bg-card p-5"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="제목">
+          <input value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} required maxLength={120} className={inputCls} />
+        </Field>
+        <Field label="기간 / 대상">
+          <input value={v.period} onChange={(e) => setV({ ...v, period: e.target.value })} maxLength={200} placeholder="퇴실 기준 월요일 ~ 금요일" className={inputCls} />
+        </Field>
       </div>
+      <Field label="설명">
+        <textarea value={v.description} onChange={(e) => setV({ ...v, description: e.target.value })} rows={3} maxLength={2000} className={inputCls} />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="강조 문구" hint="예: 2일째 50% 할인">
+          <input value={v.highlight ?? ""} onChange={(e) => setV({ ...v, highlight: e.target.value })} maxLength={80} className={inputCls} />
+        </Field>
+        <Field label="뱃지" hint="예: 평일 · 연박">
+          <input value={v.badge ?? ""} onChange={(e) => setV({ ...v, badge: e.target.value })} maxLength={20} className={inputCls} />
+        </Field>
+        <div>
+          <span className="mb-1.5 block text-sm font-semibold">색상</span>
+          <div className="flex gap-2" role="group" aria-label="색상 선택">
+            {EVENT_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-label={c}
+                aria-pressed={v.color === c}
+                onClick={() => setV({ ...v, color: c })}
+                className={cn("h-9 w-9 rounded-full border-2", v.color === c ? "border-foreground" : "border-transparent")}
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+      <Field label="조건 (한 줄에 하나)">
+        <textarea value={cond} onChange={(e) => setCond(e.target.value)} rows={3} className={inputCls} />
+      </Field>
+      <div className="flex items-center justify-between gap-3 pt-2">
+        <Toggle checked={v.active} onChange={(active) => setV({ ...v, active })} label="진행 중(게시)" />
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
+            취소
+          </Button>
+          <Button type="submit" disabled={busy || !v.title.trim()}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} 저장
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+function EventsTab() {
+  const [items, setItems] = useState<EventItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set());
+  const loadSeq = useRef(0);
+
+  const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
+    try {
+      const res = await api.listEvents();
+      if (seq !== loadSeq.current) return;
+      setItems(res.events);
+      setError(null);
+    } catch (e) {
+      if (seq === loadSeq.current) setError(errMsg(e));
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const run = async (key: string, fn: () => Promise<unknown>) => {
+    if (busy.has(key)) return false;
+    setBusy((s) => new Set(s).add(key));
+    setError(null);
+    try {
+      await fn();
+      await load();
+      return true;
+    } catch (e) {
+      setError(errMsg(e));
+      return false;
+    } finally {
+      setBusy((s) => {
+        const n = new Set(s);
+        n.delete(key);
+        return n;
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{items ? `${items.length}건 · 진행 중 ${items.filter((e) => e.active).length}건` : "불러오는 중…"}</p>
+        <Button onClick={() => setAdding(true)} disabled={adding}>
+          <Plus className="h-4 w-4" /> 새 이벤트
+        </Button>
+      </div>
+      {error && <InlineNotice tone="error">{error}</InlineNotice>}
+      {adding && (
+        <EventForm initial={emptyEvent()} busy={busy.has("new")} onCancel={() => setAdding(false)} onSave={(v) => void run("new", () => api.createEvent(v)).then((ok) => ok && setAdding(false))} />
+      )}
+      <ul className="space-y-3">
+        {items?.map((ev) => (
+          <li key={ev.id}>
+            {editing === ev.id ? (
+              <EventForm initial={ev} busy={busy.has(ev.id)} onCancel={() => setEditing(null)} onSave={(v) => void run(ev.id, () => api.updateEvent(ev.id, v)).then((ok) => ok && setEditing(null))} />
+            ) : (
+              <div className={cn("flex gap-4 rounded-lg border border-border bg-card p-5", !ev.active && "opacity-60")}>
+                <span className="mt-1 h-10 w-1.5 shrink-0 rounded-full" style={{ background: ev.color }} aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {ev.badge && <Badge tone="solid">{ev.badge}</Badge>}
+                    {ev.highlight && <span className="font-display text-sm text-accent-strong">{ev.highlight}</span>}
+                    {!ev.active && <Badge>비공개</Badge>}
+                  </div>
+                  <h3 className="mt-2 font-semibold leading-snug">{ev.title}</h3>
+                  <p className="text-xs text-muted-foreground">{ev.period}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{ev.description}</p>
+                  {ev.conditions.length > 0 && (
+                    <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground/80">
+                      {ev.conditions.map((c, i) => (
+                        <li key={`${ev.id}-${i}`}>* {c}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <Button variant="secondary" onClick={() => void run(ev.id, () => api.updateEvent(ev.id, { active: !ev.active }))} disabled={busy.has(ev.id)} className="h-9">
+                    {ev.active ? "숨기기" : "게시"}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setEditing(ev.id)} className="h-9">
+                    수정
+                  </Button>
+                  <DeleteButton busy={busy.has(ev.id)} onConfirm={() => void run(ev.id, () => api.deleteEvent(ev.id))} />
+                </div>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {items && items.length === 0 && !adding && <InlineNotice>등록된 이벤트가 없습니다.</InlineNotice>}
+    </div>
+  );
+}
+
+/* ---------- 설정 ---------- */
+function SettingsTab() {
+  const [popup, setPopup] = useState<boolean | null>(null);
+  const [msg, setMsg] = useState<{ tone: "error" | "success"; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [cur, setCur] = useState("");
+  const [next, setNext] = useState("");
+  const [next2, setNext2] = useState("");
+
+  useEffect(() => {
+    api
+      .getSettings()
+      .then((s) => setPopup(s.popupEnabled))
+      .catch((e) => setMsg({ tone: "error", text: errMsg(e) }));
+  }, []);
+
+  const togglePopup = async (v: boolean) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      setPopup((await api.setPopupEnabled(v)).popupEnabled);
+      setMsg({ tone: "success", text: v ? "첫 화면 팝업을 켰습니다." : "첫 화면 팝업을 껐습니다." });
+    } catch (e) {
+      setMsg({ tone: "error", text: errMsg(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (next !== next2) {
+      setMsg({ tone: "error", text: "새 비밀번호 확인이 일치하지 않습니다." });
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api.changePassword(cur, next);
+      setCur("");
+      setNext("");
+      setNext2("");
+      setMsg({ tone: "success", text: "비밀번호를 변경했습니다. 다음 로그인부터 새 비밀번호를 사용하세요." });
+    } catch (err) {
+      setMsg({ tone: "error", text: errMsg(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {msg && <InlineNotice tone={msg.tone}>{msg.text}</InlineNotice>}
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h3 className="font-semibold">첫 화면 팝업</h3>
+        <p className="mt-1 text-sm text-muted-foreground">홈 접속 시 진행 중 이벤트와 고정 공지를 팝업으로 보여줍니다.</p>
+        <div className="mt-4">
+          {popup === null ? <span className="text-sm text-muted-foreground">불러오는 중…</span> : <Toggle checked={popup} onChange={(v) => void togglePopup(v)} label={popup ? "켜짐" : "꺼짐"} />}
+        </div>
+      </section>
+      <form onSubmit={submitPassword} className="space-y-4 rounded-lg border border-border bg-card p-5">
+        <h3 className="font-semibold">비밀번호 변경</h3>
+        <Field label="현재 비밀번호">
+          <input type="password" value={cur} onChange={(e) => setCur(e.target.value)} autoComplete="current-password" required className={inputCls} />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="새 비밀번호" hint="8자 이상">
+            <input type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" minLength={8} required className={inputCls} />
+          </Field>
+          <Field label="새 비밀번호 확인">
+            <input type="password" value={next2} onChange={(e) => setNext2(e.target.value)} autoComplete="new-password" minLength={8} required className={inputCls} />
+          </Field>
+        </div>
+        <div className="flex justify-end">
+          <Button type="submit" disabled={busy || !cur || next.length < 8}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} 변경
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ---------- 페이지 ---------- */
+export default function AdminPage() {
+  const [auth, setAuth] = useState<"checking" | "out" | "in">("checking");
+  const [tab, setTab] = useState<Tab>("notices");
+
+  useEffect(() => {
+    api
+      .me()
+      .then(() => setAuth("in"))
+      .catch(() => setAuth("out"));
+  }, []);
+
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  // 서버가 쿠키를 지운 뒤에만 로그아웃 화면으로 — 네트워크 실패 시 세션이 남은 채 로그인 화면만 보이는 착시를 막는다
+  const logout = async () => {
+    setLogoutError(null);
+    try {
+      await api.logout();
+      setAuth("out");
+    } catch (e) {
+      setLogoutError(`로그아웃 실패: ${errMsg(e)} — 다시 시도하세요`);
+    }
+  };
+
+  if (auth === "checking") {
+    return (
+      <main className="flex min-h-[100svh] items-center justify-center text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </main>
     );
   }
+  if (auth === "out") return <LoginCard onSuccess={() => setAuth("in")} />;
 
-  // Admin Dashboard
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0F1419] via-[#1a2332] to-[#0F1419]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#1a2332]/80 backdrop-blur-lg border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4A9F6D] to-[#2d5a3d] flex items-center justify-center">
-                <Settings className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">관리자 대시보드</h1>
-                <p className="text-xs text-white/50">숲속의바다 펜션</p>
-              </div>
+    <main className="min-h-[100svh] bg-background">
+      <header className="sticky top-0 z-[var(--z-sticky)] border-b border-border bg-background/85 backdrop-blur-md">
+        <div className="container-x flex h-16 items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-accent" aria-label="홈으로">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <div>
+              <p className="font-serif text-lg font-semibold leading-none">숲속의바다</p>
+              <p className="eyebrow mt-1 text-[10px] text-muted-foreground">ADMIN</p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <Link
-                href="/"
-                className="px-4 py-2 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2"
-              >
-                <Home className="w-4 h-4" />
-                <span className="hidden sm:inline">사이트 보기</span>
-              </Link>
-              <button
-                onClick={logout}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/80 text-sm flex items-center gap-2 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">로그아웃</span>
-              </button>
-            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button variant="secondary" onClick={() => void logout()} className="h-10" aria-label="로그아웃">
+              <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">로그아웃</span>
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Save Message */}
-      <AnimatePresence>
-        {saveMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-[#4A9F6D] text-white rounded-lg shadow-lg flex items-center gap-2"
-          >
-            <CheckCircle className="w-5 h-5" />
-            {saveMessage}
-          </motion.div>
+      <div className="container-x py-8 lg:py-12">
+        {logoutError && (
+          <div className="mb-6">
+            <InlineNotice tone="error">{logoutError}</InlineNotice>
+          </div>
         )}
-      </AnimatePresence>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
-          {[
-            { id: "notices" as TabType, label: "공지사항", icon: Bell },
-            { id: "events" as TabType, label: "이벤트/팝업", icon: Gift },
-            { id: "settings" as TabType, label: "설정", icon: Settings },
-          ].map((tab) => (
+        <div className="flex gap-1 rounded-full border border-border bg-card p-1 sm:max-w-md" role="tablist" aria-label="관리 메뉴">
+          {TABS.map((t) => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "bg-[#4A9F6D] text-white"
-                  : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
-              }`}
+              key={t.key}
+              type="button"
+              role="tab"
+              id={`admin-tab-${t.key}`}
+              aria-selected={tab === t.key}
+              aria-controls={`admin-panel-${t.key}`}
+              tabIndex={tab === t.key ? 0 : -1}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors",
+                tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              <tab.icon className="w-5 h-5" />
-              {tab.label}
+              <t.icon className="h-4 w-4" /> {t.label}
             </button>
           ))}
         </div>
 
-        {/* Notices Tab */}
-        {activeTab === "notices" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">공지사항 관리</h2>
-              <button
-                onClick={() => setIsAddingNotice(true)}
-                className="px-4 py-2 bg-[#4A9F6D] hover:bg-[#3D8A5A] text-white rounded-lg flex items-center gap-2 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                새 공지사항
-              </button>
-            </div>
-
-            {/* Add Notice Form */}
-            <AnimatePresence>
-              {isAddingNotice && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="bg-[#1a2332] rounded-xl border border-white/10 p-6 space-y-4"
-                >
-                  <h3 className="text-lg font-semibold text-white">새 공지사항 작성</h3>
-                  <input
-                    type="text"
-                    placeholder="제목"
-                    value={newNotice.title}
-                    onChange={(e) => setNewNotice({ ...newNotice, title: e.target.value })}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                  />
-                  <textarea
-                    placeholder="내용"
-                    value={newNotice.content}
-                    onChange={(e) => setNewNotice({ ...newNotice, content: e.target.value })}
-                    rows={6}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#4A9F6D] resize-none"
-                  />
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-white/70 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={newNotice.important}
-                        onChange={(e) => setNewNotice({ ...newNotice, important: e.target.checked })}
-                        className="w-4 h-4 rounded bg-white/10 border-white/20"
-                      />
-                      중요 공지
-                    </label>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleAddNotice}
-                      className="px-6 py-2 bg-[#4A9F6D] text-white rounded-lg flex items-center gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      저장
-                    </button>
-                    <button
-                      onClick={() => setIsAddingNotice(false)}
-                      className="px-6 py-2 bg-white/10 text-white rounded-lg"
-                    >
-                      취소
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Notice List */}
-            <div className="space-y-4">
-              {notices.map((notice) => (
-                <div key={notice.id} className="bg-[#1a2332] rounded-xl border border-white/10 overflow-hidden">
-                  {editingNotice?.id === notice.id ? (
-                    <div className="p-6 space-y-4">
-                      <input
-                        type="text"
-                        value={editingNotice.title}
-                        onChange={(e) => setEditingNotice({ ...editingNotice, title: e.target.value })}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                      />
-                      <textarea
-                        value={editingNotice.content}
-                        onChange={(e) => setEditingNotice({ ...editingNotice, content: e.target.value })}
-                        rows={6}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#4A9F6D] resize-none"
-                      />
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 text-white/70 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={editingNotice.important}
-                            onChange={(e) => setEditingNotice({ ...editingNotice, important: e.target.checked })}
-                            className="w-4 h-4 rounded bg-white/10"
-                          />
-                          중요 공지
-                        </label>
-                        <label className="flex items-center gap-2 text-white/70 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={editingNotice.active}
-                            onChange={(e) => setEditingNotice({ ...editingNotice, active: e.target.checked })}
-                            className="w-4 h-4 rounded bg-white/10"
-                          />
-                          활성화
-                        </label>
-                      </div>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={handleSaveNotice}
-                          className="px-6 py-2 bg-[#4A9F6D] text-white rounded-lg flex items-center gap-2"
-                        >
-                          <Save className="w-4 h-4" />
-                          저장
-                        </button>
-                        <button
-                          onClick={() => setEditingNotice(null)}
-                          className="px-6 py-2 bg-white/10 text-white rounded-lg"
-                        >
-                          취소
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          {notice.important && (
-                            <span className="px-2 py-1 bg-[#F5B041]/20 text-[#F5B041] text-xs font-medium rounded">
-                              중요
-                            </span>
-                          )}
-                          {!notice.active && (
-                            <span className="px-2 py-1 bg-white/10 text-white/40 text-xs font-medium rounded">
-                              비활성
-                            </span>
-                          )}
-                          <h3 className="text-lg font-semibold text-white">{notice.title}</h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setEditingNotice(notice)}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4 text-white/60" />
-                          </button>
-                          <button
-                            onClick={() => deleteNotice(notice.id)}
-                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-400" />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-white/50 text-sm mb-2">{notice.date}</p>
-                      <p className="text-white/70 text-sm whitespace-pre-wrap line-clamp-3">{notice.content}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Events Tab */}
-        {activeTab === "events" && (
-          <div className="space-y-6">
-            {/* Popup Toggle */}
-            <div className="bg-[#1a2332] rounded-xl border border-white/10 p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-1">이벤트 팝업</h3>
-                  <p className="text-white/50 text-sm">사이트 방문 시 이벤트 팝업 표시 여부</p>
-                </div>
-                <button
-                  onClick={() => setPopupEnabled(!popupEnabled)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    popupEnabled ? "bg-[#4A9F6D] text-white" : "bg-white/10 text-white/60"
-                  }`}
-                >
-                  {popupEnabled ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">이벤트 관리</h2>
-              <button
-                onClick={() => setIsAddingEvent(true)}
-                className="px-4 py-2 bg-[#4A9F6D] hover:bg-[#3D8A5A] text-white rounded-lg flex items-center gap-2 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                새 이벤트
-              </button>
-            </div>
-
-            {/* Add Event Form */}
-            <AnimatePresence>
-              {isAddingEvent && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="bg-[#1a2332] rounded-xl border border-white/10 p-6 space-y-4"
-                >
-                  <h3 className="text-lg font-semibold text-white">새 이벤트 작성</h3>
-                  <input
-                    type="text"
-                    placeholder="제목"
-                    value={newEvent.title}
-                    onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                  />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="기간 (예: 11월 ~ 3월)"
-                      value={newEvent.period}
-                      onChange={(e) => setNewEvent({ ...newEvent, period: e.target.value })}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                    />
-                    <input
-                      type="text"
-                      placeholder="배지 (예: 동절기)"
-                      value={newEvent.badge}
-                      onChange={(e) => setNewEvent({ ...newEvent, badge: e.target.value })}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="하이라이트 (예: 10% 할인)"
-                    value={newEvent.highlight}
-                    onChange={(e) => setNewEvent({ ...newEvent, highlight: e.target.value })}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                  />
-                  <textarea
-                    placeholder="설명"
-                    value={newEvent.description}
-                    onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                    rows={4}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#4A9F6D] resize-none"
-                  />
-                  <div className="flex items-center gap-4">
-                    <label className="text-white/70">테마 색상:</label>
-                    <input
-                      type="color"
-                      value={newEvent.color}
-                      onChange={(e) => setNewEvent({ ...newEvent, color: e.target.value })}
-                      className="w-10 h-10 rounded-lg cursor-pointer"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleAddEvent}
-                      className="px-6 py-2 bg-[#4A9F6D] text-white rounded-lg flex items-center gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      저장
-                    </button>
-                    <button
-                      onClick={() => setIsAddingEvent(false)}
-                      className="px-6 py-2 bg-white/10 text-white rounded-lg"
-                    >
-                      취소
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Event List */}
-            <div className="grid gap-4">
-              {events.map((event) => (
-                <div key={event.id} className="bg-[#1a2332] rounded-xl border border-white/10 overflow-hidden">
-                  {editingEvent?.id === event.id ? (
-                    <div className="p-6 space-y-4">
-                      <input
-                        type="text"
-                        value={editingEvent.title}
-                        onChange={(e) => setEditingEvent({ ...editingEvent, title: e.target.value })}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                      />
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <input
-                          type="text"
-                          value={editingEvent.period}
-                          onChange={(e) => setEditingEvent({ ...editingEvent, period: e.target.value })}
-                          placeholder="기간"
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                        />
-                        <input
-                          type="text"
-                          value={editingEvent.badge || ""}
-                          onChange={(e) => setEditingEvent({ ...editingEvent, badge: e.target.value })}
-                          placeholder="배지"
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                        />
-                      </div>
-                      <input
-                        type="text"
-                        value={editingEvent.highlight || ""}
-                        onChange={(e) => setEditingEvent({ ...editingEvent, highlight: e.target.value })}
-                        placeholder="하이라이트"
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                      />
-                      <textarea
-                        value={editingEvent.description}
-                        onChange={(e) => setEditingEvent({ ...editingEvent, description: e.target.value })}
-                        rows={4}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#4A9F6D] resize-none"
-                      />
-                      <div className="flex items-center gap-4 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <label className="text-white/70">색상:</label>
-                          <input
-                            type="color"
-                            value={editingEvent.color}
-                            onChange={(e) => setEditingEvent({ ...editingEvent, color: e.target.value })}
-                            className="w-10 h-10 rounded-lg cursor-pointer"
-                          />
-                        </div>
-                        <label className="flex items-center gap-2 text-white/70 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={editingEvent.active}
-                            onChange={(e) => setEditingEvent({ ...editingEvent, active: e.target.checked })}
-                            className="w-4 h-4 rounded bg-white/10"
-                          />
-                          활성화
-                        </label>
-                      </div>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={handleSaveEvent}
-                          className="px-6 py-2 bg-[#4A9F6D] text-white rounded-lg flex items-center gap-2"
-                        >
-                          <Save className="w-4 h-4" />
-                          저장
-                        </button>
-                        <button
-                          onClick={() => setEditingEvent(null)}
-                          className="px-6 py-2 bg-white/10 text-white rounded-lg"
-                        >
-                          취소
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          {event.badge && (
-                            <span
-                              className="px-2 py-1 text-xs font-medium rounded text-white"
-                              style={{ backgroundColor: event.color }}
-                            >
-                              {event.badge}
-                            </span>
-                          )}
-                          {!event.active && (
-                            <span className="px-2 py-1 bg-white/10 text-white/40 text-xs font-medium rounded">
-                              비활성
-                            </span>
-                          )}
-                          <h3 className="text-lg font-semibold text-white">{event.title}</h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setEditingEvent(event)}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4 text-white/60" />
-                          </button>
-                          <button
-                            onClick={() => deleteEvent(event.id)}
-                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-400" />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-white/50 text-sm mb-2">{event.period}</p>
-                      {event.highlight && (
-                        <span
-                          className="inline-block px-3 py-1 rounded text-sm font-medium mb-2"
-                          style={{ backgroundColor: `${event.color}20`, color: event.color }}
-                        >
-                          {event.highlight}
-                        </span>
-                      )}
-                      <p className="text-white/70 text-sm">{event.description}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Settings Tab */}
-        {activeTab === "settings" && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold text-white">설정</h2>
-
-            {/* Password Change */}
-            <div className="bg-[#1a2332] rounded-xl border border-white/10 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">비밀번호 변경</h3>
-              <div className="flex gap-4">
-                <input
-                  type="password"
-                  placeholder="새 비밀번호 (4자 이상)"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#4A9F6D]"
-                />
-                <button
-                  onClick={handleChangePassword}
-                  disabled={newPassword.length < 4}
-                  className="px-6 py-3 bg-[#4A9F6D] hover:bg-[#3D8A5A] disabled:bg-white/10 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                >
-                  변경
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Info */}
-            <div className="bg-[#1a2332] rounded-xl border border-white/10 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">시스템 정보</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-white/50">공지사항 수</span>
-                  <span className="text-white">{notices.length}개</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/50">활성 공지사항</span>
-                  <span className="text-white">{notices.filter(n => n.active).length}개</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/50">이벤트 수</span>
-                  <span className="text-white">{events.length}개</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/50">활성 이벤트</span>
-                  <span className="text-white">{events.filter(e => e.active).length}개</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/50">팝업 상태</span>
-                  <span className={popupEnabled ? "text-[#4A9F6D]" : "text-white/40"}>
-                    {popupEnabled ? "활성화" : "비활성화"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
+        {/* exit 애니메이션을 기다리는 mode="wait" 는 쓰지 않는다 — rAF 가 멈춘 상태(백그라운드 탭)에서 패널 교체가 영영 안 끝난다 */}
+        <motion.div
+          key={tab}
+          role="tabpanel"
+          id={`admin-panel-${tab}`}
+          aria-labelledby={`admin-tab-${tab}`}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="mt-8 max-w-3xl"
+        >
+          {tab === "notices" && <NoticesTab />}
+          {tab === "events" && <EventsTab />}
+          {tab === "settings" && <SettingsTab />}
+        </motion.div>
+      </div>
+    </main>
   );
 }

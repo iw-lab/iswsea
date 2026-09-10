@@ -2,13 +2,13 @@
 
 import { Calendar, Gift, Phone, Sandwich, Sparkles, type LucideIcon } from "lucide-react";
 import { pensionInfo, prologue, services } from "@/data/pension";
-import { useAdminStore } from "@/stores/adminStore";
+import { useContentStore } from "@/stores/adminStore";
 import { Badge, ButtonLink, Reveal } from "@/components/ui";
 
 const serviceIcons: Record<string, LucideIcon> = { Gift, Sandwich };
 
 export default function Reservation() {
-  const events = useAdminStore((s) => s.events).filter((e) => e.active);
+  const events = useContentStore((s) => s.events).filter((e) => e.active);
 
   return (
     <section id="reservation" className="relative scroll-mt-16 overflow-hidden bg-scrim text-on-image">

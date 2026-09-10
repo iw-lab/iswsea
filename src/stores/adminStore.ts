@@ -1,188 +1,52 @@
+// 방문자 화면이 읽는 콘텐츠 스토어.
+// 초기값 = src/data/pension.ts(빌드 시점 스냅샷) → 마운트 후 /api/content 로 D1 최신본을 덮어쓴다.
+// API 가 없거나(next dev) 실패하면 스냅샷을 그대로 보여준다(정적 폴백 불변식).
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { notices as siteNotices, events as siteEvents } from "@/data/pension";
+import { getPublicContent, type EventItem, type NoticeItem } from "@/lib/adminApi";
 
-export interface NoticeItem {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  important: boolean;
-  active: boolean;
-}
+export type { EventItem, NoticeItem };
 
-export interface EventItem {
-  id: string;
-  title: string;
-  period: string;
-  description: string;
-  highlight?: string;
-  conditions: string[];
-  badge?: string;
-  color: string;
-  active: boolean;
-}
-
-export interface RoomPrice {
-  roomId: string;
-  weekday: number;
-  friday: number;
-  weekend: number;
-  peak: number;
-}
-
-interface AdminState {
-  // 인증
-  isAuthenticated: boolean;
-  adminPassword: string;
-
-  // 공지사항
+interface ContentState {
   notices: NoticeItem[];
-
-  // 이벤트
   events: EventItem[];
-
-  // 객실 가격
-  roomPrices: RoomPrice[];
-
-  // 팝업 설정
   popupEnabled: boolean;
-
-  // Actions
-  login: (password: string) => boolean;
-  logout: () => void;
-  setAdminPassword: (password: string) => void;
-
-  // Notice actions
-  addNotice: (notice: Omit<NoticeItem, "id">) => void;
-  updateNotice: (id: string, notice: Partial<NoticeItem>) => void;
-  deleteNotice: (id: string) => void;
-
-  // Event actions
-  addEvent: (event: Omit<EventItem, "id">) => void;
-  updateEvent: (id: string, event: Partial<EventItem>) => void;
-  deleteEvent: (id: string) => void;
-
-  // Popup actions
-  setPopupEnabled: (enabled: boolean) => void;
-
-  // Room price actions
-  updateRoomPrice: (roomId: string, prices: Partial<RoomPrice>) => void;
+  /** 서버 동기화 상태 — idle: 아직, synced: D1 반영, offline: 실패(스냅샷 유지) */
+  sync: "idle" | "synced" | "offline";
+  syncFromServer: () => Promise<void>;
 }
 
-const defaultNotices: NoticeItem[] = siteNotices;
-const defaultEvents: EventItem[] = siteEvents;
+let inflight: Promise<void> | null = null;
 
-export const useAdminStore = create<AdminState>()(
-  persist(
-    (set, get) => ({
-      isAuthenticated: false,
-      adminPassword: "",
-      notices: defaultNotices,
-      events: defaultEvents,
-      roomPrices: [],
-      popupEnabled: true,
+export const useContentStore = create<ContentState>()((set) => ({
+  notices: siteNotices,
+  events: siteEvents,
+  popupEnabled: true,
+  sync: "idle",
+  syncFromServer: () => {
+    if (inflight) return inflight;
+    inflight = getPublicContent()
+      .then((c) => {
+        // 응답 모양을 검증한다 — 장애 페이지(HTML→JSON 실패)나 빈 객체가 스냅샷을 undefined 로 덮지 않도록
+        if (!c || c.ok !== true || !Array.isArray(c.notices) || !Array.isArray(c.events)) throw new Error("잘못된 콘텐츠 응답");
+        set({ notices: c.notices, events: c.events, popupEnabled: c.popupEnabled !== false, sync: "synced" });
+      })
+      .catch(() => set({ sync: "offline" }))
+      .finally(() => {
+        inflight = null;
+      });
+    return inflight;
+  },
+}));
 
-      login: (password: string) => {
-        const storedPassword = get().adminPassword;
-        const envPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "woodinsea2024";
-        const isValid = password === (storedPassword || envPassword);
-        if (isValid) {
-          set({ isAuthenticated: true });
-        }
-        return isValid;
-      },
+/** 옛 이름 호환 — 예전 localStorage 기반 관리자 스토어를 쓰던 컴포넌트용 */
+export const useAdminStore = useContentStore;
 
-      logout: () => {
-        set({ isAuthenticated: false });
-      },
-
-      setAdminPassword: (password: string) => {
-        set({ adminPassword: password });
-      },
-
-      addNotice: (notice) => {
-        const newNotice: NoticeItem = {
-          ...notice,
-          id: Date.now().toString(),
-        };
-        set((state) => ({
-          notices: [newNotice, ...state.notices],
-        }));
-      },
-
-      updateNotice: (id, notice) => {
-        set((state) => ({
-          notices: state.notices.map((n) =>
-            n.id === id ? { ...n, ...notice } : n
-          ),
-        }));
-      },
-
-      deleteNotice: (id) => {
-        set((state) => ({
-          notices: state.notices.filter((n) => n.id !== id),
-        }));
-      },
-
-      addEvent: (event) => {
-        const newEvent: EventItem = {
-          ...event,
-          id: Date.now().toString(),
-        };
-        set((state) => ({
-          events: [newEvent, ...state.events],
-        }));
-      },
-
-      updateEvent: (id, event) => {
-        set((state) => ({
-          events: state.events.map((e) =>
-            e.id === id ? { ...e, ...event } : e
-          ),
-        }));
-      },
-
-      deleteEvent: (id) => {
-        set((state) => ({
-          events: state.events.filter((e) => e.id !== id),
-        }));
-      },
-
-      setPopupEnabled: (enabled) => {
-        set({ popupEnabled: enabled });
-      },
-
-      updateRoomPrice: (roomId, prices) => {
-        set((state) => {
-          const existing = state.roomPrices.find((r) => r.roomId === roomId);
-          if (existing) {
-            return {
-              roomPrices: state.roomPrices.map((r) =>
-                r.roomId === roomId ? { ...r, ...prices } : r
-              ),
-            };
-          }
-          return {
-            roomPrices: [
-              ...state.roomPrices,
-              { roomId, weekday: 0, friday: 0, weekend: 0, peak: 0, ...prices },
-            ],
-          };
-        });
-      },
-    }),
-    {
-      name: "woodinsea-admin-storage",
-      version: 2,
-      // v1 = 원본 사이트 이관 전 placeholder 공지/이벤트 → 실제 데이터로 리셋
-      migrate: (persisted, version) => {
-        const state = (persisted ?? {}) as Partial<AdminState>;
-        if (version < 2) {
-          return { ...state, notices: defaultNotices, events: defaultEvents } as AdminState;
-        }
-        return state as AdminState;
-      },
-    }
-  )
-);
+/** 예전 localStorage 영속 데이터는 더 이상 읽지 않는다 — 한 번 지워 혼동을 없앤다 */
+if (typeof window !== "undefined") {
+  try {
+    window.localStorage.removeItem("woodinsea-admin-storage");
+  } catch {
+    /* storage 차단 환경 */
+  }
+}

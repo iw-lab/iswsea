@@ -42,3 +42,7 @@ next-env.d.ts
 
 .vercel
 nul
+
+# Cloudflare
+.wrangler/
+.dev.vars

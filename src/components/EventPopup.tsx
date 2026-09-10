@@ -3,22 +3,23 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Sparkles, ArrowRight } from "lucide-react";
-import { useAdminStore } from "@/stores/adminStore";
+import { useContentStore } from "@/stores/adminStore";
 import { pensionInfo } from "@/data/pension";
 import { useFocusTrap } from "@/components/ui";
 
 const KEY = "woodinsea-popup-hide-until";
 
 export default function EventPopup() {
-  const { events, notices, popupEnabled } = useAdminStore();
+  const { events, notices, popupEnabled, sync } = useContentStore();
   const [open, setOpen] = useState(false);
   const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   const activeEvents = events.filter((e) => e.active);
   const pinned = notices.find((n) => n.active && n.important);
 
-  // persist 재수화로 이벤트·공지가 바뀌어도 다시 판단하도록 원시값 하나로 축약해 의존성에 건다
-  const hasContent = popupEnabled && (activeEvents.length > 0 || !!pinned);
+  // 서버 동기화(D1)가 끝난 뒤에만 판단한다 — 관리자가 팝업을 껐는데 스냅샷 기준으로 먼저 떠 버리는 것을 막는다.
+  // API 가 없는 환경(next dev)은 sync 가 "offline" 이 되어 스냅샷으로 진행한다.
+  const hasContent = sync !== "idle" && popupEnabled && (activeEvents.length > 0 || !!pinned);
   useEffect(() => {
     if (!hasContent) return;
     try {

@@ -12,6 +12,7 @@ import Footer from "@/components/Footer";
 import FloatingCTA from "@/components/FloatingCTA";
 import EventPopup from "@/components/EventPopup";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import ContentSync from "@/components/ContentSync";
 
 export default function Home() {
   return (
@@ -32,6 +33,7 @@ export default function Home() {
       <FloatingCTA />
       <EventPopup />
       <PWAInstallPrompt />
+      <ContentSync />
     </>
   );
 }

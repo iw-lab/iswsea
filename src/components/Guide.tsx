@@ -242,7 +242,8 @@ export default function Guide() {
               </button>
             ))}
           </div>
-          <AnimatePresence mode="wait" initial={false}>
+          {/* mode="wait" 는 exit 완료를 기다린다 — rAF 가 멈춘 백그라운드 탭에서 패널 교체가 영영 안 끝나므로 쓰지 않는다 */}
+          <AnimatePresence initial={false}>
             <motion.div
               key={tab}
               role="tabpanel"
@@ -250,7 +251,6 @@ export default function Guide() {
               aria-labelledby={`guide-tab-${tab}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.25 }}
               className="mt-6"
             >

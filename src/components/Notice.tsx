@@ -4,12 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Pin, Settings } from "lucide-react";
-import { useAdminStore } from "@/stores/adminStore";
+import { useContentStore } from "@/stores/adminStore";
 import { Badge, Reveal, SectionHeading } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 export default function Notice() {
-  const notices = useAdminStore((s) => s.notices).filter((n) => n.active);
+  const notices = useContentStore((s) => s.notices).filter((n) => n.active);
   const [open, setOpen] = useState<string | null>(null);
 
   if (notices.length === 0) return null;
