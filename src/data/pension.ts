@@ -128,74 +128,74 @@ export const rooms: Room[] = [
   {
     id: "landora", name: "란도라", nameEn: "LANDORA", building: "숲속동",
     description: "아늑한 목조 침실과 바다를 향한 창. 둘만의 조용한 시간을 위한 커플 객실입니다.",
-    features: FEATURES, images: gallery("room3", 10, "란도라"), mainImage: "/images/gallery/room3/1.webp",
+    features: FEATURES, images: gallery("room3", 12, "란도라"), mainImage: "/images/gallery/room3/1.webp",
     capacity: { standard: 2, max: 2 }, size: "30㎡ / 9평", sizeM2: 30, pyeong: 9,
     prices: { weekday: 140000, friday: 160000, weekend: 180000, sunday: 140000 },
   },
   {
     id: "bluemoon", name: "블루문", nameEn: "BLUEMOON", building: "숲속동",
     description: "푸른 달빛 아래 바다를 바라보며 로맨틱한 시간을 보낼 수 있는 커플 맞춤 객실입니다.",
-    features: FEATURES, images: gallery("room4", 10, "블루문"), mainImage: "/images/gallery/room4/1.webp",
+    features: FEATURES, images: gallery("room4", 11, "블루문"), mainImage: "/images/gallery/room4/1.webp",
     capacity: { standard: 2, max: 2 }, size: "30㎡ / 9평", sizeM2: 30, pyeong: 9,
     prices: { weekday: 140000, friday: 160000, weekend: 180000, sunday: 140000 },
   },
   {
     id: "lora", name: "로라", nameEn: "LORA",     description: "모던하면서도 편안한 분위기의 객실에서 일상의 피로를 풀어보세요.",
-    features: FEATURES, images: gallery("room5", 10, "로라"), mainImage: "/images/gallery/room5/1.webp",
+    features: FEATURES, images: gallery("room5", 16, "로라"), mainImage: "/images/gallery/room5/1.webp",
     capacity: { standard: 2, max: 3 }, size: "40㎡ / 12평", sizeM2: 40, pyeong: 12,
     prices: { weekday: 110000, friday: 120000, weekend: 160000, sunday: 110000 },
   },
   {
     id: "elle", name: "엘르", nameEn: "ELLE", building: "바다동",    description: "우아하고 세련된 인테리어가 돋보이는 감각적인 공간입니다.",
-    features: FEATURES, images: gallery("room6", 10, "엘르"), mainImage: "/images/gallery/room6/1.webp",
+    features: FEATURES, images: gallery("room6", 15, "엘르"), mainImage: "/images/gallery/room6/1.webp",
     capacity: { standard: 2, max: 3 }, size: "40㎡ / 12평", sizeM2: 40, pyeong: 12,
     prices: { weekday: 160000, friday: 190000, weekend: 220000, sunday: 160000 },
   },
   {
     id: "angela", name: "안젤라", nameEn: "ANGELA", building: "바다동",
     description: "천사처럼 포근하고 아늑한 분위기에서 편안한 휴식을 취해보세요. 가족 여행에 알맞은 넉넉한 크기입니다.",
-    features: FEATURES, images: gallery("room7", 10, "안젤라"), mainImage: "/images/gallery/room7/1.webp",
+    features: FEATURES, images: gallery("room7", 19, "안젤라"), mainImage: "/images/gallery/room7/1.webp",
     capacity: { standard: 2, max: 4 }, size: "53㎡ / 16평", sizeM2: 53, pyeong: 16,
     prices: { weekday: 180000, friday: 220000, weekend: 240000, sunday: 180000 },
   },
   {
     id: "sahara", name: "사하라", nameEn: "SAHARA", building: "바다동",
     description: "이국적인 분위기와 함께 특별한 여행의 기분을 느껴보세요.",
-    features: FEATURES, images: gallery("room8", 10, "사하라"), mainImage: "/images/gallery/room8/1.webp",
+    features: FEATURES, images: gallery("room8", 19, "사하라"), mainImage: "/images/gallery/room8/1.webp",
     capacity: { standard: 2, max: 4 }, size: "53㎡ / 16평", sizeM2: 53, pyeong: 16,
     prices: { weekday: 180000, friday: 220000, weekend: 240000, sunday: 180000 },
   },
   {
     id: "margaret", name: "마가렛", nameEn: "MARGARET", building: "바다동",
     description: "꽃처럼 화사하고 밝은 분위기의 객실에서 힐링 타임을 즐기세요.",
-    features: FEATURES, images: gallery("room9", 10, "마가렛"), mainImage: "/images/gallery/room9/1.webp",
+    features: FEATURES, images: gallery("room9", 16, "마가렛"), mainImage: "/images/gallery/room9/1.webp",
     capacity: { standard: 2, max: 4 }, size: "53㎡ / 16평", sizeM2: 53, pyeong: 16,
     prices: { weekday: 180000, friday: 220000, weekend: 240000, sunday: 180000 },
   },
   {
     id: "rococo", name: "로코코", nameEn: "ROCOCO", building: "바다동",
     description: "클래식하면서도 화려한 로코코 스타일의 특별한 공간입니다.",
-    features: FEATURES, images: gallery("room10", 10, "로코코"), mainImage: "/images/gallery/room10/1.webp",
+    features: FEATURES, images: gallery("room10", 17, "로코코"), mainImage: "/images/gallery/room10/1.webp",
     capacity: { standard: 2, max: 4 }, size: "53㎡ / 16평", sizeM2: 53, pyeong: 16,
     prices: { weekday: 180000, friday: 220000, weekend: 240000, sunday: 180000 },
   },
   {
     id: "rosanna", name: "로잔나VIP", nameEn: "ROSANNA VIP", building: "숲속동",vip: true,
     description: "장미처럼 아름답고 로맨틱한 분위기의 VIP 객실입니다.",
-    features: FEATURES, images: gallery("room11", 10, "로잔나VIP"), mainImage: "/images/gallery/room11/1.webp",
+    features: FEATURES, images: gallery("room11", 21, "로잔나VIP"), mainImage: "/images/gallery/room11/1.webp",
     capacity: { standard: 2, max: 4 }, size: "66㎡ / 20평", sizeM2: 66, pyeong: 20,
     prices: { weekday: 200000, friday: 240000, weekend: 280000, sunday: 200000 },
   },
   {
     id: "momoka", name: "모모카VIP", nameEn: "MOMOKA VIP", building: "숲속동",vip: true,
     description: "복숭아꽃처럼 사랑스럽고 따뜻한 분위기의 VIP 공간입니다.",
-    features: FEATURES, images: gallery("room12", 10, "모모카VIP"), mainImage: "/images/gallery/room12/1.webp",
+    features: FEATURES, images: gallery("room12", 18, "모모카VIP"), mainImage: "/images/gallery/room12/1.webp",
     capacity: { standard: 2, max: 4 }, size: "66㎡ / 20평", sizeM2: 66, pyeong: 20,
     prices: { weekday: 200000, friday: 240000, weekend: 280000, sunday: 200000 },
   },
   {
     id: "charleston", name: "찰스톤", nameEn: "CHARLESTON",     description: "빈티지한 매력과 현대적 편안함이 조화를 이루는 대형 객실. 단체·가족 모임에 알맞습니다.",
-    features: FEATURES, images: gallery("room13", 10, "찰스톤"), mainImage: "/images/gallery/room13/1.webp",
+    features: FEATURES, images: gallery("room13", 25, "찰스톤"), mainImage: "/images/gallery/room13/1.webp",
     capacity: { standard: 4, max: 8 }, size: "129㎡ / 39평", sizeM2: 129, pyeong: 39,
     prices: { weekday: 330000, friday: 390000, weekend: 450000, sunday: 330000 },
   },
@@ -233,7 +233,7 @@ export const specials: Special[] = [
     paragraphs: [
       "모든 객실 프라이빗 월풀형 욕조. 조용히 쉬고 싶을 때 객실 안 개별 월풀형 욕조에서 언제든 원하는 시간에, 따뜻한 물에 몸을 맡기고 몸의 긴장과 마음의 피로를 풀어 보세요!",
     ],
-    images: gallery("special2", 8, "월풀형 욕조"),
+    images: gallery("special2", 9, "월풀형 욕조"),
   },
   {
     id: "tidal-flat", number: "03", name: "갯벌체험", nameEn: "SEA EXPERIENCE", icon: "Shell",
@@ -273,7 +273,7 @@ export const specials: Special[] = [
       "목조 건물·원목 가구·소나무가 많아 화재 위험이 있습니다. 개인 화기(버너), 캔들, 폭죽, 장작 등 불을 사용하는 물품은 '절대' 금지입니다.",
       "화재 발생 시 실내 바베큐장·객실의 소화기를 이용해 주시고, 긴급 상황 시 041-675-1222로 연락 부탁드립니다.",
     ],
-    images: gallery("special4", 8, "바베큐"),
+    images: gallery("special4", 9, "바베큐"),
   },
   {
     id: "pool", number: "05", name: "수영장과 모래해변", nameEn: "POOL & SANDY BEACH", icon: "Droplets",
@@ -296,7 +296,7 @@ export const specials: Special[] = [
       "본 수영장은 무료이며 안전요원이 없으므로 보호자께서 세심한 주의를 기울여 주시기 바랍니다.",
       "저녁 7시 ~ 아침 10시 청소 시간에는 약제 투입으로 침전물이 형성되어 출입을 절대 금지합니다.",
     ],
-    images: gallery("special5", 8, "수영장"),
+    images: gallery("special5", 14, "수영장"),
   },
   {
     id: "cafe", number: "06", name: "야외카페 & 산책로", nameEn: "CAFE & HIKING TRAIL", icon: "Coffee",
@@ -305,7 +305,7 @@ export const specials: Special[] = [
       "펜션에서 바다로 미로처럼 이어지는 오솔길을 따라 해변으로 가면 낭만적인 야외카페(쉼터)가 있습니다. 숲 속 쉼터에 앉아 바다를 보면서 몸의 긴장, 마음의 피로를 풀어 보세요. 여러분의 따뜻한 쉼터가 될 것입니다.",
     ],
     bullets: ["펜션 뒤편에도 작은 쉼터가 있고 후망산 등산로가 있어 가벼운 산책을 할 수 있습니다."],
-    images: gallery("special6", 8, "야외카페"),
+    images: gallery("special6", 10, "야외카페"),
   },
   {
     id: "garden", number: "07", name: "바다꽃정원", nameEn: "FLOWER GARDEN", icon: "Flower2",
@@ -321,7 +321,7 @@ export const specials: Special[] = [
       "가을 : 국화, 수국, 사철장미, 오스테오스퍼멈, 야생화",
       "겨울 : 서향 동백꽃, 구골나무, 사철장미",
     ],
-    images: gallery("special7", 8, "꽃정원"),
+    images: gallery("special7", 17, "꽃정원"),
   },
 ];
 
@@ -369,12 +369,12 @@ export const tours: Tour[] = [
   {
     id: "farmkamille", number: "07", name: "팜카밀레 허브농원", distance: "차량 40분", minutes: 40,
     description: "캐모마일·로즈·컬러·보태니컬·와일드·라벤더·토피어리 가든의 7개 테마 가든과 이곳에서만 맛볼 수 있는 허브빵, 허브 식사로 허브의 향기를 눈으로, 입으로, 코로 담아갈 수 있는 허브농원입니다.",
-    images: [],
+    images: ["/images/gallery/tour7/1.webp", "/images/gallery/tour7/2.webp", "/images/gallery/tour7/3.webp"],
   },
   {
     id: "lightfestival", number: "08", name: "태안 빛축제장", distance: "차량 50분", minutes: 50,
     description: "200만 구의 LED 전구가 축제장을 화려하게 수놓습니다. 한여름 밤의 열기를 식혀주는 물놀이와 밤하늘 별을 보며 즐기는 빛축제, 온가족이 즐길 수 있는 축제입니다.",
-    images: [],
+    images: ["/images/gallery/tour8/1.webp", "/images/gallery/tour8/2.webp", "/images/gallery/tour8/3.webp"],
   },
 ];
 
@@ -423,7 +423,7 @@ export const priceInfo = {
   ],
   cautions: [
     "미성년자는 보호자 동반 없이 이용하실 수 없습니다.",
-    "애완동물은 타 객실 및 손님을 위해 입실을 금하오니 양해 바랍니다. (동반 입실 시 당일 예약 취소에 해당됩니다.)",
+    "반려동물은 타 객실 및 손님을 위해 입실을 금하오니 양해 바랍니다. (동반 입실 시 당일 예약 취소에 해당됩니다.)",
     "객실 내에서는 절대 금연입니다.",
   ],
 };

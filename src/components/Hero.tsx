@@ -10,45 +10,67 @@ import { cn } from "@/lib/utils";
 const INTERVAL = 6500;
 
 export default function Hero() {
-  const [index, setIndex] = useState(0);
+  // cur 와 prev 를 한 상태로 묶어 둔다 — «직전 장»을 알아야 그 장을 불투명하게 깔아 둘 수 있다.
+  const [{ cur: index, prev }, setSlide] = useState({ cur: 0, prev: -1 });
   // 자동 전환 콘텐츠는 사용자가 멈출 수 있어야 한다(WCAG 2.2.2)
   const [paused, setPaused] = useState(false);
 
-  // 탭이 가려지면(백그라운드) 슬라이드 진행을 멈춘다 — rAF 가 멈춘 상태에서 exit 애니메이션이
-  // 끝나지 않아 AnimatePresence 에 슬라이드가 누적되는 것을 막는다.
+  // 탭이 가려지면(백그라운드) 슬라이드 진행을 멈춘다 — rAF 가 멈춘 상태에서는
+  // 전환 애니메이션이 끝나지 않아 레이어가 어중간한 상태로 남는다.
   useEffect(() => {
     if (paused) return;
-    const tick = () => {
+    const id = window.setInterval(() => {
       if (document.visibilityState === "hidden") return;
-      setIndex((i) => (i + 1) % heroImages.length);
-    };
-    const id = window.setInterval(tick, INTERVAL);
+      setSlide((s) => ({ cur: (s.cur + 1) % heroImages.length, prev: s.cur }));
+    }, INTERVAL);
     return () => window.clearInterval(id);
   }, [paused]);
 
   const slide = heroImages[index];
+  const next = (index + 1) % heroImages.length;
 
   return (
     <section className="relative h-[100svh] min-h-[560px] w-full overflow-hidden bg-scrim text-on-image" aria-label="메인 비주얼">
-      {/* 첫 장은 즉시 렌더 — LCP */}
-      <AnimatePresence initial={false}>
-        <motion.div
-          key={slide.src}
-          className="absolute inset-0"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1.4, ease: "easeInOut" }}
-        >
-          <img
-            src={slide.src}
-            alt={slide.alt}
-            className="animate-ken-burns absolute inset-0 h-full w-full object-cover"
-            loading={index === 0 ? "eager" : "lazy"}
-            decoding="async"
-          />
-        </motion.div>
-      </AnimatePresence>
+      {/*
+        전환은 «위에서 덮기»다. 두 장을 동시에 반투명하게 만들면(크로스페이드)
+        합성 알파가 중간에 0.75 까지 떨어져 뒤의 scrim(hsl 160 30% 6%, 거의 검정)이
+        비치고, 그게 매 컷 «반짝임»으로 보인다(2026-09-10 실측).
+        그래서 나가는 장은 흐려지지 않고 «불투명한 채로 아래에 깔려» 있다가,
+        새 장이 완전히 덮은 뒤에 꺼진다 → 합성 알파가 항상 1.
+      */}
+      {heroImages.map((img, i) => {
+        const active = i === index;
+        // 현재·직전·다음 세 장만 DOM 에 둔다. 여덟 장을 한꺼번에 올리면
+        // 히어로 이미지 합계 1.1MB 가 첫 화면에서 LCP 와 경쟁한다.
+        // «다음»을 미리 올려 두는 건 6.5초 뒤 전환 때 이미 디코딩돼 있게 하기 위해서다.
+        if (!active && i !== prev && i !== next) return null;
+        return (
+          <motion.div
+            key={img.src}
+            className="absolute inset-0"
+            style={{ zIndex: active ? 2 : i === prev ? 1 : 0 }}
+            initial={false}
+            animate={{ opacity: active ? 1 : 0 }}
+            transition={
+              active
+                ? { duration: 1.4, ease: "easeInOut" }
+                : { duration: 0, delay: 1.4 } // 덮인 뒤에야 꺼진다(계단식, 페이드 아님)
+            }
+          >
+            <img
+              src={img.src}
+              alt={img.alt}
+              loading={i === 0 ? "eager" : "lazy"}
+              fetchPriority={i === 0 ? "high" : "auto"}
+              decoding="async"
+              className={cn(
+                "absolute inset-0 h-full w-full object-cover",
+                active && "animate-ken-burns"
+              )}
+            />
+          </motion.div>
+        );
+      })}
       <div className="scrim-b absolute inset-0" />
       <div className="scrim-t absolute inset-x-0 top-0 h-40" />
 
@@ -128,7 +150,7 @@ export default function Hero() {
                   type="button"
                   aria-pressed={i === index}
                   aria-label={`${i + 1}번 슬라이드`}
-                  onClick={() => setIndex(i)}
+                  onClick={() => setSlide((s) => (i === s.cur ? s : { cur: i, prev: s.cur }))}
                   className={cn(
                     "h-1 rounded-full transition-all",
                     i === index ? "w-7 bg-on-image" : "w-3 bg-on-image/40 hover:bg-on-image/70"
