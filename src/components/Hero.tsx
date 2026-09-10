@@ -64,7 +64,7 @@ export default function Hero() {
             transition={
               active
                 ? { duration: 1.4, ease: "easeInOut" }
-                : { duration: 0, delay: 1.4 } // 덮인 뒤에야 꺼진다(계단식, 페이드 아님)
+                : { duration: 0, delay: 2.4 } // 덮이고도 1초 더 깔려 있다가 꺼진다
             }
           >
             <img
@@ -74,7 +74,9 @@ export default function Hero() {
               fetchPriority={i === 0 ? "high" : "auto"}
               decoding="async"
               className={cn(
-                "absolute inset-0 h-full w-full object-cover",
+                // will-change 는 «미리 받아 두는 장»에도 걸어 둔다 — 켄번즈 클래스가 전환 시점에
+                // 붙으면 승격·재래스터도 그때 일어나기 때문이다. 마운트 때 끝내 놓는다.
+                "absolute inset-0 h-full w-full object-cover will-change-transform",
                 !preload && "animate-ken-burns"
               )}
             />

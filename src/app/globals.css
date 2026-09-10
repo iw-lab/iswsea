@@ -312,4 +312,11 @@
 }
 .animate-ken-burns {
   animation: ken-burns 9s ease-out forwards;
+  /*
+    will-change 가 없으면 크롬이 «전환이 시작되는 그 순간» 이 레이어를 합성 레이어로
+    승격하면서 전체 화면 이미지를 새로 래스터화한다 — 그 한 프레임이 깜빡임으로 보인다.
+    미리 선언해 두면 승격이 전환 시점이 아니라 마운트 시점에 끝난다.
+    (헤드리스는 GPU 합성을 안 써서 이 현상이 계측에 안 잡힌다 — 실기에서만 보인다.)
+  */
+  will-change: transform;
 }
