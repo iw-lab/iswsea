@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Maximize2, Phone, Users, X, Bath, Flame, Waves, Wine, AlertCircle } from "lucide-react";
+import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Maximize2, Phone, Users, X, Pause, Play, Bath, Flame, Waves, Wine, AlertCircle } from "lucide-react";
 import { rooms, roomCommon, pensionInfo, priceInfo, formatPrice, type Room } from "@/data/pension";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingCTA from "@/components/FloatingCTA";
 import { Badge, ButtonLink, Photo, Reveal, useFocusTrap } from "@/components/ui";
 import { cn } from "@/lib/utils";
+
+const SLIDE_INTERVAL = 5500;
 
 const amenityIcons = [Waves, Bath, Flame, Wine];
 
@@ -74,17 +76,36 @@ function Lightbox({ room, index, onClose, onMove }: { room: Room; index: number;
 
 export default function RoomDetailClient({ roomId }: { roomId: string }) {
   const room = rooms.find((r) => r.id === roomId);
-  const [current, setCurrent] = useState(0);
+  // cur 와 prev 를 한 상태로 묶는다 — 직전 장을 «불투명한 채로» 아래 깔아 둬야
+  // 두 장이 동시에 반투명해지는 순간(=깜빡임)이 생기지 않는다. Hero 와 같은 방식.
+  const [{ cur: current, prev: prevSlide }, setSlide] = useState({ cur: 0, prev: -1 });
   const [lightbox, setLightbox] = useState(false);
+  // 자동 전환 콘텐츠는 멈출 수 있어야 한다(WCAG 2.2.2)
+  const [paused, setPaused] = useState(false);
 
   const move = useCallback(
     (d: 1 | -1) => {
       if (!room) return;
-      setCurrent((c) => (c + d + room.images.length) % room.images.length);
+      const n = room.images.length;
+      setSlide((s) => ({ cur: (s.cur + d + n) % n, prev: s.cur }));
     },
     [room]
   );
+  const goTo = useCallback((i: number) => setSlide((s) => (i === s.cur ? s : { cur: i, prev: s.cur })), []);
   const closeLightbox = useCallback(() => setLightbox(false), []);
+
+  // 히어로 자동 전환. 라이트박스가 열려 있거나 탭이 가려지면 넘기지 않는다
+  // (백그라운드에서는 전환이 끝나지 않아 레이어가 어중간하게 남는다).
+  // current 가 바뀔 때마다 타이머가 다시 걸리므로 수동 조작 직후에도 온전히 한 주기를 기다린다.
+  useEffect(() => {
+    if (!room || paused || lightbox || room.images.length < 2) return;
+    const n = room.images.length;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      setSlide((s) => ({ cur: (s.cur + 1) % n, prev: s.cur }));
+    }, SLIDE_INTERVAL);
+    return () => window.clearInterval(id);
+  }, [room, paused, lightbox, current]);
 
   if (!room) {
     return (
@@ -102,6 +123,7 @@ export default function RoomDetailClient({ roomId }: { roomId: string }) {
     );
   }
 
+  const nextImage = (current + 1) % room.images.length;
   const idx = rooms.findIndex((r) => r.id === room.id);
   const prev = rooms[(idx - 1 + rooms.length) % rooms.length];
   const next = rooms[(idx + 1) % rooms.length];
@@ -119,18 +141,41 @@ export default function RoomDetailClient({ roomId }: { roomId: string }) {
       <main>
         {/* 히어로 */}
         <section className="relative h-[68svh] min-h-[440px] bg-scrim text-on-image">
-          <AnimatePresence initial={false}>
-            <motion.img
-              key={room.images[current].src}
-              src={room.images[current].src}
-              alt={room.images[current].alt}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.6 }}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          </AnimatePresence>
+          {/*
+            들어오는 장만 0 → 1 로 올린다. 나가는 장은 «끄지 않고» 아래에 불투명하게
+            남겨 둔다 — 어차피 완전히 덮이고, 다음 전환 때 통째로 언마운트된다.
+            그래서 배경(어두운 scrim)이 비쳐 보이는 순간이 구조적으로 없다.
+            다음 장은 미리 마운트해 디코딩을 끝내 둔다(첫 프레임 빈 화면 방지).
+            isolate = z-index 가 이 래퍼 밖으로 새지 않게 가둔다.
+          */}
+          <div className="absolute inset-0 isolate">
+            {room.images.map((img, i) => {
+              const active = i === current;
+              const under = i === prevSlide;
+              const ready = i === nextImage;
+              if (!active && !under && !ready) return null;
+              return (
+                <div
+                  key={img.src}
+                  className="absolute inset-0"
+                  style={{
+                    zIndex: active ? 2 : under ? 1 : 0,
+                    opacity: active || under ? 1 : 0,
+                    transition: "opacity 0.8s ease",
+                  }}
+                >
+                  <img
+                    src={img.src}
+                    alt={img.alt}
+                    loading={i === 0 ? "eager" : "lazy"}
+                    fetchPriority={i === 0 ? "high" : "auto"}
+                    decoding="async"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                </div>
+              );
+            })}
+          </div>
           <div className="scrim-b absolute inset-0" />
           <div className="scrim-t absolute inset-x-0 top-0 h-40" />
           <div className="container-x relative flex h-full flex-col justify-end pb-8">
@@ -158,6 +203,15 @@ export default function RoomDetailClient({ roomId }: { roomId: string }) {
                 <span className="tnum font-display text-sm tracking-widest text-on-image-muted">
                   {String(current + 1).padStart(2, "0")} / {String(room.images.length).padStart(2, "0")}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setPaused((p) => !p)}
+                  aria-pressed={paused}
+                  aria-label={paused ? "사진 자동 넘김 재생" : "사진 자동 넘김 일시정지"}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-on-image/35 backdrop-blur-sm transition-colors hover:bg-on-image/15"
+                >
+                  {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                </button>
                 <button type="button" aria-label="다음 사진" onClick={() => move(1)} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-on-image/35 backdrop-blur-sm hover:bg-on-image/15">
                   <ChevronRight className="h-5 w-5" />
                 </button>
@@ -174,7 +228,7 @@ export default function RoomDetailClient({ roomId }: { roomId: string }) {
                 <button
                   type="button"
                   aria-label={`${i + 1}번 사진`}
-                  onClick={() => setCurrent(i)}
+                  onClick={() => goTo(i)}
                   onDoubleClick={() => setLightbox(true)}
                   className={cn("block overflow-hidden rounded-md ring-2 ring-offset-2 ring-offset-card transition", i === current ? "ring-primary" : "ring-transparent opacity-70 hover:opacity-100")}
                 >
@@ -217,7 +271,7 @@ export default function RoomDetailClient({ roomId }: { roomId: string }) {
 
             <Reveal delay={0.1} className="mt-10 grid gap-3 sm:grid-cols-2">
               {room.images.slice(1, 5).map((img, i) => (
-                <button key={img.src} type="button" onClick={() => { setCurrent(i + 1); setLightbox(true); }} className="group overflow-hidden rounded-lg">
+                <button key={img.src} type="button" onClick={() => { goTo(i + 1); setLightbox(true); }} className="group overflow-hidden rounded-lg">
                   <Photo src={img.src} alt={img.alt} ratio="aspect-[4/3]" imgClassName="transition-transform duration-700 group-hover:scale-[1.04]" />
                 </button>
               ))}
